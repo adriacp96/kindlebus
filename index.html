@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Route 2A - Kindle</title>
+    <title>Route 2A - Kindle Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
     <style>
         :root {
             --bg: #ffffff; 
             --text: #000000; 
-            --gray-bg: #eeeeee; /* Slightly lighter for E-ink contrast */
+            --gray-bg: #eeeeee;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: "Amazon Ember", "Helvetica", sans-serif;
+            font-family: "Amazon Ember", "Helvetica", "Arial", sans-serif;
             margin: 0;
             padding: 20px;
-            /* Paperwhite 2025 aspect ratio optimization */
             width: 100vw;
             height: 100vh;
             box-sizing: border-box;
@@ -184,9 +183,15 @@
             const [h, m] = busTimeStr.split(':').map(Number);
             const busDate = new Date(now);
             busDate.setHours(h, m, 0, 0);
-            if (busDate < now) busDate.setDate(busDate.getDate() + 1);
+
+            // If bus time is earlier than now, it's scheduled for tomorrow
+            if (busDate < now) {
+                busDate.setDate(busDate.getDate() + 1);
+            }
+
             const diff = busDate - now;
             if (diff <= 0) return "00:00";
+
             const mins = Math.floor(diff / 60000);
             const secs = Math.floor((diff % 60000) / 1000);
             return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
@@ -194,11 +199,25 @@
 
         function updateBoard() {
             const now = new Date();
-            document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
-            const current = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
-            let filtered = scheduleData.filter(t => t > current).slice(0, 3);
-            if (filtered.length < 3) filtered = filtered.concat(scheduleData.slice(0, 3 - filtered.length));
+            // Update Clock
+            document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
+            
+            // Current time for filtering (HH:mm)
+            const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                               now.getMinutes().toString().padStart(2, '0');
+            
+            // Find the index of the next upcoming bus
+            let nextIndex = scheduleData.findIndex(t => t > currentStr);
+            
+            // If no more buses today, start from the first one in the list (tomorrow)
+            if (nextIndex === -1) nextIndex = 0;
+            
+            // Pick the next 3 buses
+            let filtered = [];
+            for (let i = 0; i < 3; i++) {
+                filtered.push(scheduleData[(nextIndex + i) % scheduleData.length]);
+            }
 
             document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => `
                 <div class="row ${i === 0 ? 'next' : ''}">
@@ -241,12 +260,12 @@
                     `;
                 }).join('');
             } catch (e) {
-                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Syncing English Calendar...</div>';
+                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Waiting for calendar data...</div>';
             }
         }
 
         setInterval(updateBoard, 1000);
-        setInterval(fetchCalendar, 300000);
+        setInterval(fetchCalendar, 300000); // Update calendar every 5 mins
         updateBoard();
         fetchCalendar();
     </script>
