@@ -3,57 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Route 2A - Kindle Live</title>
+    <title>Route 2A - Kindle 2025 Edition</title>
     <style>
         :root {
             --bg: #ffffff; 
             --text: #000000; 
-            --border: #000000;
+            --gray-bg: #e5e5e5;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: "Amazon Ember", -apple-system, sans-serif;
+            font-family: "Amazon Ember", "Helvetica", sans-serif;
             margin: 0;
-            padding: 8px;
-            overflow: hidden; /* Prevent accidental scrolling */
+            padding: 15px; /* Increased for the 7" screen */
+            overflow: hidden;
         }
 
-        .airport-header {
+        .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 5px solid var(--border);
-            padding-bottom: 8px;
-            margin-bottom: 10px;
+            border-bottom: 6px solid #000;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
         }
 
-        .route-name {
-            font-size: 38px;
-            font-weight: 900;
+        .route-info h1 {
+            font-size: 16px;
+            font-weight: 800;
             margin: 0;
-            line-height: 1;
+            letter-spacing: 1px;
         }
 
-        .bus-icon-center {
-            height: 50px;
-            filter: grayscale(1) contrast(2.5);
+        .route-number {
+            font-size: 50px; /* Large for the 2025 display */
+            font-weight: 900;
+            margin: -5px 0 0 0;
+        }
+
+        .bus-img {
+            height: 65px; /* Larger icon for the larger screen */
+            filter: grayscale(1) contrast(3);
+        }
+
+        .clock-section {
+            text-align: right;
         }
 
         #live-clock {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 800;
             margin: 0;
-            font-variant-numeric: tabular-nums; /* Prevents text jumping */
+            font-variant-numeric: tabular-nums;
         }
 
         .board-headers {
             display: flex;
-            padding: 8px;
+            padding: 10px;
             background: #000;
             color: #fff;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 800;
             text-transform: uppercase;
         }
@@ -61,49 +71,50 @@
         .row {
             display: flex;
             align-items: center;
-            padding: 22px 8px;
-            border-bottom: 2px solid var(--border);
+            padding: 24px 10px; /* Taller rows for the 12th Gen height */
+            border-bottom: 2px solid #000;
         }
 
         .row.next {
-            background-color: #f0f0f0;
-            border-bottom: 6px solid var(--border);
+            background-color: var(--gray-bg);
+            border-bottom: 8px solid #000;
         }
 
-        /* Column Layout */
-        .col-time { width: 18%; font-size: 26px; font-weight: 800; }
-        .col-from { width: 22%; font-size: 14px; font-weight: 700; text-transform: uppercase; }
-        .col-to   { width: 22%; font-size: 14px; font-weight: 800; text-transform: uppercase; }
-        .col-due  { width: 23%; font-size: 26px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
-        .col-status { width: 15%; text-align: right; font-weight: 800; font-size: 12px; }
+        /* Column Widths optimized for 7" screen */
+        .col-time { width: 18%; font-size: 30px; font-weight: 800; }
+        .col-from { width: 20%; font-size: 16px; font-weight: 700; color: #444; }
+        .col-to   { width: 22%; font-size: 18px; font-weight: 800; }
+        .col-due  { width: 25%; font-size: 30px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
+        .col-status { width: 15%; text-align: right; font-weight: 800; font-size: 14px; }
 
-        .status-box { 
-            border: 2px solid #000; 
-            padding: 2px 4px;
+        .next-label {
+            border: 3px solid #000;
+            padding: 2px 6px;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
 
-    <header class="airport-header">
-        <div>
-            <div style="font-size: 12px; font-weight: 800;">DEPARTURES</div>
-            <p class="route-name">2A</p>
+    <header class="header">
+        <div class="route-info">
+            <h1>DEPARTURES</h1>
+            <p class="route-number">2A</p>
         </div>
 
-        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-icon-center">
+        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img">
 
-        <div style="text-align: right;">
-            <div style="font-size: 10px; font-weight: 800;">LIVE TIME</div>
+        <div class="clock-section">
+            <div style="font-size: 12px; font-weight: 800;">CURRENT TIME</div>
             <p id="live-clock">00:00:00</p>
         </div>
     </header>
 
     <div class="board-headers">
         <div style="width: 18%">Time</div>
-        <div style="width: 22%">From</div>
+        <div style="width: 20%">From</div>
         <div style="width: 22%">To</div>
-        <div style="width: 23%; text-align: right;">Due In</div>
+        <div style="width: 25%; text-align: right;">Due In</div>
         <div style="width: 15%; text-align: right;">Status</div>
     </div>
 
@@ -134,46 +145,41 @@
             return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
         }
 
-        function updateLiveBoard() {
+        function updateBoard() {
             const now = new Date();
-            const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
-            document.getElementById('live-clock').innerText = timeString;
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString('en-GB', { hour12: false });
 
             const currentHHMM = now.getHours().toString().padStart(2, '0') + ":" + 
                                now.getMinutes().toString().padStart(2, '0');
 
-            // Find upcoming buses
-            const filtered = scheduleData.filter(time => time > currentHHMM).slice(0, 5);
+            const filtered = scheduleData.filter(time => time > currentHHMM).slice(0, 6);
             const container = document.getElementById('schedule-container');
             
-            let currentContent = "";
-
+            let html = "";
             if (filtered.length === 0) {
-                currentContent = '<div style="text-align:center; padding:50px; font-weight:800; font-size:24px;">SERVICE ENDED</div>';
+                html = '<div style="text-align:center; padding:100px; font-size:30px; font-weight:800;">SERVICE ENDED</div>';
             } else {
                 filtered.forEach((busTime, index) => {
                     const isNext = index === 0;
-                    const statusText = isNext ? '<span class="status-box">NEXT</span>' : 'SCHED';
                     const rowClass = isNext ? 'row next' : 'row';
-                    const countdown = getCountdown(busTime);
+                    const status = isNext ? '<span class="next-label">NEXT</span>' : 'SCHED';
 
-                    currentContent += `
+                    html += `
                         <div class="${rowClass}">
                             <div class="col-time">${busTime}</div>
-                            <div class="col-from">GROSV.</div>
+                            <div class="col-from">GROSVENOR</div>
                             <div class="col-to">EGHQ</div>
-                            <div class="col-due">${countdown}</div>
-                            <div class="col-status">${statusText}</div>
+                            <div class="col-due">${getCountdown(busTime)}</div>
+                            <div class="col-status">${status}</div>
                         </div>
                     `;
                 });
             }
-            container.innerHTML = currentContent;
+            container.innerHTML = html;
         }
 
-        // Set interval to 1 second (1000ms)
-        setInterval(updateLiveBoard, 1000);
-        updateLiveBoard();
+        setInterval(updateBoard, 1000);
+        updateBoard();
     </script>
 </body>
 </html>
