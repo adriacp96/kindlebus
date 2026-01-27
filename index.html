@@ -9,7 +9,7 @@
         :root {
             --bg: #ffffff; 
             --text: #000000; 
-            --gray-bg: #eeeeee; /* Slightly lighter for E-ink contrast */
+            --gray-bg: #eeeeee;
         }
 
         body {
@@ -18,7 +18,6 @@
             font-family: "Amazon Ember", "Helvetica", sans-serif;
             margin: 0;
             padding: 20px;
-            /* Paperwhite 2025 aspect ratio optimization */
             width: 100vw;
             height: 100vh;
             box-sizing: border-box;
@@ -110,7 +109,6 @@
         #calendar-section {
             margin-top: 20px;
             flex-grow: 1;
-            border-top: 2px solid #ccc;
         }
 
         .cal-header {
@@ -126,16 +124,21 @@
         .event-row {
             display: flex;
             padding: 12px 10px;
-            border-bottom: 2px solid #eee;
+            border-bottom: 2px solid #000;
             align-items: center;
         }
 
+        .event-symbol {
+            font-size: 24px;
+            margin-right: 15px;
+            font-weight: 900;
+        }
+
         .event-time { 
-            width: 180px; 
+            width: 150px; 
             font-weight: 800; 
             font-size: 18px; 
             text-transform: uppercase;
-            color: #444;
         }
         
         .event-title { 
@@ -173,7 +176,7 @@
     <div id="schedule-container"></div>
 
     <div id="calendar-section">
-        <div class="cal-header">Calendar Events</div>
+        <div class="cal-header">Upcoming Agenda</div>
         <div id="event-list"></div>
     </div>
 
@@ -235,13 +238,14 @@
                     const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
                     return `
                         <div class="event-row">
+                            <div class="event-symbol">&bull;</div>
                             <div class="event-time">${dateStr}, ${timeStr}</div>
                             <div class="event-title">${e.title}</div>
                         </div>
                     `;
                 }).join('');
             } catch (e) {
-                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Syncing English Calendar...</div>';
+                document.getElementById('event-list').innerHTML = '<div style="padding:20px;">[!] Syncing Calendar...</div>';
             }
         }
 
