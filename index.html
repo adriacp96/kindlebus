@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Route 2A - Kindle</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
     <style>
         :root {
             --bg: #ffffff; 
             --text: #000000; 
-            --gray-bg: #eeeeee; /* Slightly lighter for E-ink contrast */
+            --gray-bg: #eeeeee; 
         }
 
         body {
@@ -18,7 +17,6 @@
             font-family: "Amazon Ember", "Helvetica", sans-serif;
             margin: 0;
             padding: 20px;
-            /* Paperwhite 2025 aspect ratio optimization */
             width: 100vw;
             height: 100vh;
             box-sizing: border-box;
@@ -37,114 +35,42 @@
             margin-bottom: 10px;
         }
 
-        .route-info h1 {
-            font-size: 18px;
-            font-weight: 800;
-            margin: 0;
-            letter-spacing: 2px;
-        }
-
-        .route-number {
-            font-size: 64px;
-            font-weight: 900;
-            margin: -10px 0 0 0;
-            line-height: 1;
-        }
-
-        .bus-img {
-            height: 75px;
-            filter: grayscale(1) contrast(5);
-        }
-
-        .clock-section {
-            text-align: right;
-        }
-
-        #live-clock {
-            font-size: 38px;
-            font-weight: 900;
-            margin: 0;
-            font-variant-numeric: tabular-nums;
-        }
+        .route-info h1 { font-size: 18px; font-weight: 800; margin: 0; letter-spacing: 2px; }
+        .route-number { font-size: 64px; font-weight: 900; margin: -10px 0 0 0; line-height: 1; }
+        .bus-img { height: 75px; filter: grayscale(1) contrast(5); }
+        .clock-section { text-align: right; }
+        #live-clock { font-size: 38px; font-weight: 900; margin: 0; font-variant-numeric: tabular-nums; }
 
         /* BUS TABLE */
         .board-headers {
-            display: flex;
-            padding: 12px;
-            background: #000;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: center;
+            display: flex; padding: 12px; background: #000; color: #fff;
+            font-size: 16px; font-weight: 800; text-transform: uppercase; text-align: center;
         }
 
-        .row {
-            display: flex;
-            align-items: center;
-            padding: 15px 10px;
-            border-bottom: 3px solid #000;
-            text-align: center;
-        }
+        .row { display: flex; align-items: center; padding: 15px 10px; border-bottom: 3px solid #000; text-align: center; }
+        .row.next { background-color: var(--gray-bg); border-bottom: 10px solid #000; padding: 20px 10px; }
 
-        .row.next {
-            background-color: var(--gray-bg);
-            border-bottom: 10px solid #000;
-            padding: 20px 10px;
-        }
-
-        .col-time   { width: 18%; font-size: 32px; font-weight: 800; }
-        .col-from   { width: 22%; font-size: 16px; font-weight: 700; color: #333; }
-        .col-to     { width: 20%; font-size: 18px; font-weight: 800; }
-        .col-due    { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
+        .col-time { width: 18%; font-size: 32px; font-weight: 800; }
+        .col-from { width: 22%; font-size: 16px; font-weight: 700; color: #333; }
+        .col-to { width: 20%; font-size: 18px; font-weight: 800; }
+        .col-due { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
         .col-status { width: 15%; font-weight: 800; font-size: 16px; display: flex; justify-content: center; }
 
-        .next-label {
-            border: 4px solid #000;
-            padding: 4px 8px;
-            display: inline-block;
-            line-height: 1;
-        }
+        .next-label { border: 4px solid #000; padding: 4px 8px; display: inline-block; line-height: 1; }
 
         /* CALENDAR SECTION */
-        #calendar-section {
-            margin-top: 20px;
-            flex-grow: 1;
-            border-top: 2px solid #ccc;
-        }
+        #calendar-section { margin-top: 20px; flex-grow: 1; border-top: 2px solid #ccc; }
+        .cal-header { background: #000; color: #fff; padding: 8px 12px; font-size: 16px; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; }
 
-        .cal-header {
-            background: #000;
-            color: #fff;
-            padding: 8px 12px;
-            font-size: 16px;
-            font-weight: 800;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .event-row {
-            display: flex;
-            padding: 12px 10px;
-            border-bottom: 2px solid #eee;
-            align-items: center;
-        }
-
-        .event-time { 
-            width: 180px; 
-            font-weight: 800; 
-            font-size: 18px; 
-            text-transform: uppercase;
-            color: #444;
-        }
+        .event-row { display: flex; padding: 12px 10px; border-bottom: 2px solid #eee; align-items: center; }
+        .event-time { width: 180px; font-weight: 800; font-size: 18px; text-transform: uppercase; color: #444; }
+        .event-title { flex-grow: 1; font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        .event-title { 
-            flex-grow: 1; 
-            font-size: 20px; 
-            font-weight: 700; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        /* TODAY HIGHLIGHT */
+        .event-row.is-today { 
+            background-color: var(--gray-bg); 
+            border-left: 12px solid #000; 
+            padding-left: 5px;
         }
     </style>
 </head>
@@ -180,18 +106,6 @@
     <script>
         const scheduleData = ["00:43", "01:03", "01:23", "01:43", "02:03", "02:23", "02:53", "03:23", "03:53", "04:23", "04:48", "05:08", "05:28", "05:53", "06:13", "06:33", "06:53", "07:13", "07:38", "08:03", "08:28", "08:53", "09:18", "09:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
 
-        function getCountdown(busTimeStr, now) {
-            const [h, m] = busTimeStr.split(':').map(Number);
-            const busDate = new Date(now);
-            busDate.setHours(h, m, 0, 0);
-            if (busDate < now) busDate.setDate(busDate.getDate() + 1);
-            const diff = busDate - now;
-            if (diff <= 0) return "00:00";
-            const mins = Math.floor(diff / 60000);
-            const secs = Math.floor((diff % 60000) / 1000);
-            return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
-        }
-
         function updateBoard() {
             const now = new Date();
             document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
@@ -200,53 +114,99 @@
             let filtered = scheduleData.filter(t => t > current).slice(0, 3);
             if (filtered.length < 3) filtered = filtered.concat(scheduleData.slice(0, 3 - filtered.length));
 
-            document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => `
-                <div class="row ${i === 0 ? 'next' : ''}">
-                    <div class="col-time">${t}</div>
-                    <div class="col-from">GROSVENOR</div>
-                    <div class="col-to">EGHQ</div>
-                    <div class="col-due">${getCountdown(t, now)}</div>
-                    <div class="col-status">${i === 0 ? '<span class="next-label">NEXT</span>' : 'SCHED'}</div>
-                </div>
-            `).join('');
+            document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => {
+                const [h, m] = t.split(':').map(Number);
+                const busDate = new Date(now);
+                busDate.setHours(h, m, 0, 0);
+                if (busDate < now) busDate.setDate(busDate.getDate() + 1);
+                const diff = busDate - now;
+                const mins = Math.floor(diff / 60000).toString().padStart(2, '0');
+                const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+
+                return `
+                    <div class="row ${i === 0 ? 'next' : ''}">
+                        <div class="col-time">${t}</div>
+                        <div class="col-from">GROSVENOR</div>
+                        <div class="col-to">EGHQ</div>
+                        <div class="col-due">${mins}:${secs}</div>
+                        <div class="col-status">${i === 0 ? '<span class="next-label">NEXT</span>' : 'SCHED'}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderEventsUI(events) {
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            
+            // Filter out events that occurred before today
+            const currentEvents = events.filter(e => e.start >= startOfToday);
+
+            document.getElementById('event-list').innerHTML = currentEvents.map(e => {
+                const d = new Date(e.start);
+                const isToday = d.toDateString() === now.toDateString();
+                const dateStr = d.toLocaleDateString('en-GB', {weekday:'short'});
+                const timeStr = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
+                
+                return `
+                    <div class="event-row ${isToday ? 'is-today' : ''}">
+                        <div class="event-time">${isToday ? 'TODAY' : dateStr}, ${timeStr}</div>
+                        <div class="event-title">${e.title}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
         async function fetchCalendar() {
             const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
             const proxy = 'https://corsproxy.io/?' + encodeURIComponent(icalUrl);
+            
+            const cached = localStorage.getItem('kindle_cal_cache');
+            if (cached) renderEventsUI(JSON.parse(cached));
+
             try {
                 const response = await fetch(proxy);
-                const data = await response.text();
-                const jcalData = ICAL.parse(data);
-                const comp = new ICAL.Component(jcalData);
-                const vevents = comp.getAllSubcomponents('vevent');
-                const now = new Date();
-                
-                let events = vevents.map(ve => {
-                    const event = new ICAL.Event(ve);
-                    return { title: event.summary, start: event.startDate.toJSDate() };
-                })
-                .filter(e => e.start >= now)
-                .sort((a, b) => a.start - b.start)
-                .slice(0, 4);
+                let text = await response.text();
+                // Handle iCalendar line folding
+                text = text.replace(/\r?\n[ \t]/g, '');
 
-                document.getElementById('event-list').innerHTML = events.map(e => {
-                    const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
-                    const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
-                    return `
-                        <div class="event-row">
-                            <div class="event-time">${dateStr}, ${timeStr}</div>
-                            <div class="event-title">${e.title}</div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (e) {
-                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Syncing English Calendar...</div>';
-            }
+                const eventBlocks = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                
+                let events = [];
+                eventBlocks.forEach(block => {
+                    const summary = (block.match(/SUMMARY:(.*)/) || [])[1]?.trim() || "Event";
+                    const dtstartMatch = block.match(/DTSTART(?:;VALUE=DATE|;TZID=.*)?:(\d{8}T\d{6}Z?|\d{8})/);
+                    
+                    if (dtstartMatch) {
+                        const rawDate = dtstartMatch[1];
+                        const start = new Date(
+                            rawDate.substring(0,4), 
+                            parseInt(rawDate.substring(4,6))-1, 
+                            rawDate.substring(6,8),
+                            rawDate.includes('T') ? rawDate.substring(9,11) : 0,
+                            rawDate.includes('T') ? rawDate.substring(11,13) : 0
+                        ).getTime();
+                        
+                        // Keep event if it's anytime today or later
+                        if (start >= startOfToday) {
+                            events.push({ title: summary.replace(/\\,/g, ','), start: start });
+                        }
+                    }
+                });
+
+                // Sort by date/time ascending
+                events.sort((a, b) => a.start - b.start);
+                const topEvents = events.slice(0, 4);
+
+                renderEventsUI(topEvents);
+                localStorage.setItem('kindle_cal_cache', JSON.stringify(topEvents));
+            } catch (e) { console.error("Sync Error"); }
         }
 
         setInterval(updateBoard, 1000);
-        setInterval(fetchCalendar, 300000);
+        setInterval(fetchCalendar, 300000); // Sync every 5 mins
         updateBoard();
         fetchCalendar();
     </script>
