@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Route 2A - Kindle 2025</title>
+    <title>Route 2A</title>
     <style>
         :root {
             --bg: #ffffff; 
@@ -104,7 +104,7 @@
         <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img">
 
         <div class="clock-section">
-            <div style="font-size: 12px; font-weight: 800;">CURRENT TIME</div>
+            <div style="font-size: 12px; font-weight: 800;">SHIFTED TIME (+4H)</div>
             <p id="live-clock">00:00:00</p>
         </div>
     </header>
@@ -130,18 +130,23 @@
             "23:03", "23:28", "23:53"
         ];
 
-        function getCountdown(busTimeStr) {
+        function getShiftedTime() {
             const now = new Date();
+            // Create a new date object shifted 4 hours ahead
+            return new Date(now.getTime() + (4 * 60 * 60 * 1000));
+        }
+
+        function getCountdown(busTimeStr, referenceTime) {
             const [hours, minutes] = busTimeStr.split(':').map(Number);
-            const busDate = new Date();
+            const busDate = new Date(referenceTime);
             busDate.setHours(hours, minutes, 0, 0);
 
-            // Handle midnight rollover: If current time is 23:00 and bus is 00:43
-            if (busDate < now && now.getHours() > 12) {
+            // Handle midnight rollover logic
+            if (busDate < referenceTime) {
                 busDate.setDate(busDate.getDate() + 1);
             }
 
-            const diff = busDate - now;
+            const diff = busDate - referenceTime;
             if (diff <= 0) return "00:00";
 
             const mins = Math.floor(diff / 60000);
@@ -150,23 +155,24 @@
         }
 
         function updateBoard() {
-            const now = new Date();
-            const hh = now.getHours().toString().padStart(2, '0');
-            const mm = now.getMinutes().toString().padStart(2, '0');
-            const ss = now.getSeconds().toString().padStart(2, '0');
+            const virtualNow = getShiftedTime();
             
-            // Strictly match device clock
+            const hh = virtualNow.getHours().toString().padStart(2, '0');
+            const mm = virtualNow.getMinutes().toString().padStart(2, '0');
+            const ss = virtualNow.getSeconds().toString().padStart(2, '0');
+            
+            // Update the clock at the top
             document.getElementById('live-clock').innerText = hh + ":" + mm + ":" + ss;
 
             const currentHHMM = hh + ":" + mm;
 
-            // Logic for selecting next buses (including those after midnight if late)
+            // Find buses relative to the +4h time
             let filtered = scheduleData.filter(time => time > currentHHMM).slice(0, 6);
             
-            // If near end of day, pull from start of schedule
+            // If we're at the end of the day, wrap around to morning buses
             if (filtered.length < 6) {
-                const nextDayBuses = scheduleData.slice(0, 6 - filtered.length);
-                filtered = filtered.concat(nextDayBuses);
+                const wrapAround = scheduleData.slice(0, 6 - filtered.length);
+                filtered = filtered.concat(wrapAround);
             }
 
             const container = document.getElementById('schedule-container');
@@ -182,7 +188,7 @@
                         <div class="col-time">${busTime}</div>
                         <div class="col-from">GROSVENOR</div>
                         <div class="col-to">EGHQ</div>
-                        <div class="col-due">${getCountdown(busTime)}</div>
+                        <div class="col-due">${getCountdown(busTime, virtualNow)}</div>
                         <div class="col-status">${status}</div>
                     </div>
                 `;
