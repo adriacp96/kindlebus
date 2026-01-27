@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Route 2A - Kindle Live Board</title>
+    <title>Route 2A - Kindle 2025</title>
     <style>
         :root {
-            --white: #ffffff;
-            --black: #000000;
-            --gray: #e0e0e0;
+            --bg: #ffffff; 
+            --text: #000000; 
+            --gray-bg: #e5e5e5;
         }
 
         body {
-            background-color: var(--white);
-            color: var(--black);
-            font-family: "Amazon Ember", "Helvetica", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: "Amazon Ember", "Helvetica", sans-serif;
             margin: 0;
-            padding: 20px; /* Optimized for 7-inch screen */
+            padding: 15px;
             overflow: hidden;
         }
 
@@ -24,41 +24,35 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 8px solid var(--black);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            border-bottom: 6px solid #000;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
         }
 
-        .route-id {
-            flex: 1;
-        }
-
-        .route-id h1 {
-            font-size: 14px;
+        .route-info h1 {
+            font-size: 16px;
             font-weight: 800;
             margin: 0;
-            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .route-number {
-            font-size: 60px;
+            font-size: 50px;
             font-weight: 900;
-            line-height: 1;
-            margin: 0;
+            margin: -5px 0 0 0;
         }
 
-        .bus-icon {
-            height: 70px;
+        .bus-img {
+            height: 65px;
             filter: grayscale(1) contrast(3);
         }
 
         .clock-section {
-            flex: 1;
             text-align: right;
         }
 
-        #device-time {
-            font-size: 36px;
+        #live-clock {
+            font-size: 32px;
             font-weight: 800;
             margin: 0;
             font-variant-numeric: tabular-nums;
@@ -66,10 +60,10 @@
 
         .board-headers {
             display: flex;
-            padding: 12px;
-            background: var(--black);
-            color: var(--white);
-            font-size: 16px;
+            padding: 10px;
+            background: #000;
+            color: #fff;
+            font-size: 14px;
             font-weight: 800;
             text-transform: uppercase;
         }
@@ -77,25 +71,24 @@
         .row {
             display: flex;
             align-items: center;
-            padding: 25px 12px;
-            border-bottom: 3px solid var(--black);
+            padding: 24px 10px;
+            border-bottom: 2px solid #000;
         }
 
         .row.next {
-            background-color: var(--gray);
-            border-bottom: 10px solid var(--black);
+            background-color: var(--gray-bg);
+            border-bottom: 8px solid #000;
         }
 
-        /* Column adjustments for 12th Gen Screen */
-        .col-time { width: 18%; font-size: 32px; font-weight: 800; }
-        .col-from { width: 20%; font-size: 18px; font-weight: 700; text-transform: uppercase; }
-        .col-to   { width: 22%; font-size: 20px; font-weight: 800; text-transform: uppercase; }
-        .col-due  { width: 25%; font-size: 34px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
-        .col-status { width: 15%; text-align: right; font-weight: 800; font-size: 16px; }
+        .col-time { width: 18%; font-size: 30px; font-weight: 800; }
+        .col-from { width: 20%; font-size: 16px; font-weight: 700; color: #444; }
+        .col-to   { width: 22%; font-size: 18px; font-weight: 800; }
+        .col-due  { width: 25%; font-size: 30px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
+        .col-status { width: 15%; text-align: right; font-weight: 800; font-size: 14px; }
 
-        .tag-next {
-            border: 4px solid var(--black);
-            padding: 2px 8px;
+        .next-label {
+            border: 3px solid #000;
+            padding: 2px 6px;
             display: inline-block;
         }
     </style>
@@ -103,16 +96,16 @@
 <body>
 
     <header class="header">
-        <div class="route-id">
-            <h1>Route</h1>
+        <div class="route-info">
+            <h1>DEPARTURES</h1>
             <p class="route-number">2A</p>
         </div>
 
-        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-icon">
+        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img">
 
         <div class="clock-section">
-            <div style="font-size: 12px; font-weight: 800;">DEVICE TIME</div>
-            <p id="device-time">00:00:00</p>
+            <div style="font-size: 12px; font-weight: 800;">CURRENT TIME</div>
+            <p id="live-clock">00:00:00</p>
         </div>
     </header>
 
@@ -143,8 +136,8 @@
             const busDate = new Date();
             busDate.setHours(hours, minutes, 0, 0);
 
-            // Handle schedule rollover (buses after midnight)
-            if (busDate < now && now.getHours() > 20) {
+            // Handle midnight rollover: If current time is 23:00 and bus is 00:43
+            if (busDate < now && now.getHours() > 12) {
                 busDate.setDate(busDate.getDate() + 1);
             }
 
@@ -156,47 +149,49 @@
             return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
         }
 
-        function refreshBoard() {
+        function updateBoard() {
             const now = new Date();
+            const hh = now.getHours().toString().padStart(2, '0');
+            const mm = now.getMinutes().toString().padStart(2, '0');
+            const ss = now.getSeconds().toString().padStart(2, '0');
             
-            // Sync Live Clock with Device Time
-            const hours = now.getHours().toString().padStart(2, '0');
-            const mins = now.getMinutes().toString().padStart(2, '0');
-            const secs = now.getSeconds().toString().padStart(2, '0');
-            document.getElementById('device-time').innerText = `${hours}:${mins}:${secs}`;
+            // Strictly match device clock
+            document.getElementById('live-clock').innerText = hh + ":" + mm + ":" + ss;
 
-            const currentTimeStr = `${hours}:${mins}`;
+            const currentHHMM = hh + ":" + mm;
 
-            // Filter for next 5 buses
-            const upcomingBuses = scheduleData.filter(time => time > currentTimeStr).slice(0, 5);
+            // Logic for selecting next buses (including those after midnight if late)
+            let filtered = scheduleData.filter(time => time > currentHHMM).slice(0, 6);
+            
+            // If near end of day, pull from start of schedule
+            if (filtered.length < 6) {
+                const nextDayBuses = scheduleData.slice(0, 6 - filtered.length);
+                filtered = filtered.concat(nextDayBuses);
+            }
+
             const container = document.getElementById('schedule-container');
             
-            let htmlRows = "";
-            if (upcomingBuses.length === 0) {
-                htmlRows = '<div style="text-align:center; padding:80px; font-size:24px; font-weight:800;">END OF SERVICE</div>';
-            } else {
-                upcomingBuses.forEach((busTime, index) => {
-                    const isNext = index === 0;
-                    const rowClass = isNext ? 'row next' : 'row';
-                    const statusLabel = isNext ? '<span class="tag-next">NEXT</span>' : 'SCHED';
+            let html = "";
+            filtered.forEach((busTime, index) => {
+                const isNext = index === 0;
+                const rowClass = isNext ? 'row next' : 'row';
+                const status = isNext ? '<span class="next-label">NEXT</span>' : 'SCHED';
 
-                    htmlRows += `
-                        <div class="${rowClass}">
-                            <div class="col-time">${busTime}</div>
-                            <div class="col-from">GROSV.</div>
-                            <div class="col-to">EGHQ</div>
-                            <div class="col-due">${getCountdown(busTime)}</div>
-                            <div class="col-status">${statusLabel}</div>
-                        </div>
-                    `;
-                });
-            }
-            container.innerHTML = htmlRows;
+                html += `
+                    <div class="${rowClass}">
+                        <div class="col-time">${busTime}</div>
+                        <div class="col-from">GROSVENOR</div>
+                        <div class="col-to">EGHQ</div>
+                        <div class="col-due">${getCountdown(busTime)}</div>
+                        <div class="col-status">${status}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
         }
 
-        // 1-second interval to match your Kindle's refresh rate
-        setInterval(refreshBoard, 1000);
-        refreshBoard();
+        setInterval(updateBoard, 1000);
+        updateBoard();
     </script>
 </body>
 </html>
