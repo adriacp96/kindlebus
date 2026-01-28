@@ -53,6 +53,12 @@
         .bus-img {
             height: 75px;
             filter: grayscale(1) contrast(5);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .bus-flipped {
+            transform: scaleX(-1);
         }
 
         .clock-section {
@@ -95,7 +101,7 @@
         .col-time   { width: 18%; font-size: 32px; font-weight: 800; }
         .col-from   { width: 22%; font-size: 16px; font-weight: 700; color: #333; }
         .col-to     { width: 20%; font-size: 18px; font-weight: 800; }
-        .col-due    { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
+        .col-due     { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
         .col-status { width: 15%; font-weight: 800; font-size: 16px; display: flex; justify-content: center; }
 
         .next-label {
@@ -154,7 +160,7 @@
             <h1>DEPARTURES</h1>
             <p class="route-number">2A</p>
         </div>
-        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img">
+        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img" id="bus-toggle" onclick="toggleRoute()">
         <div class="clock-section">
             <div style="font-size: 14px; font-weight: 800;">LOCAL TIME</div>
             <p id="live-clock">00:00:00</p>
@@ -177,10 +183,22 @@
     </div>
 
     <script>
-        const scheduleData = ["00:43", "01:03", "01:23", "01:43", "02:03", "02:23", "02:53", "03:23", "03:53", "04:23", "04:48", "05:08", "05:28", "05:53", "06:13", "06:33", "06:53", "07:13", "07:38", "08:03", "08:28", "08:53", "09:18", "09:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
+        // State tracking
+        let isReturnRoute = false;
 
-        // --- TIME ADJUSTMENT LOGIC ---
-        // Shifts Kindle's system time forward by 4 hours
+        // EGHQ Departure times from provided document 
+        const scheduleEGHQ = ["00:15", "00:35", "00:55", "1:15", "1:35", "1:55", "02:25", "02:55", "03:25", "03:55", "04:20", "04:40", "05:00", "5:25", "5:45", "6:05", "6:25", "6:45", "7:10", "7:35", "8:00", "8:25", "8:50", "9:20", "9:45", "10:10", "10:35", "11:00", "11:25", "11:50", "12:10", "12:30", "12:50", "13:10", "13:30", "13:50", "14:15", "14:40", "15:05", "15:30", "15:55", "16:20", "16:45", "17:10", "17:35", "18:00", "18:25", "18:50", "19:15", "19:40", "20:05", "20:30", "20:55", "21:20", "21:45", "22:10", "22:35", "23:00", "23:25", "23:50"];
+        
+        // GROSVENOR Departure times (Original scheduleData provided in prompt)
+        const scheduleGrosvenor = ["00:43", "01:03", "01:23", "01:43", "02:03", "02:23", "02:53", "03:23", "03:53", "04:23", "04:48", "05:08", "05:28", "05:53", "06:13", "06:33", "06:53", "07:13", "07:38", "08:03", "08:28", "08:53", "09:18", "09:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
+
+        function toggleRoute() {
+            isReturnRoute = !isReturnRoute;
+            const busImg = document.getElementById('bus-toggle');
+            busImg.classList.toggle('bus-flipped');
+            updateBoard();
+        }
+
         function getCorrectedDate() {
             const date = new Date();
             date.setHours(date.getHours() + 4);
@@ -188,7 +206,7 @@
         }
 
         function getCountdown(busTimeStr, now) {
-            const [h, m] = busTimeStr.split(':').map(Number);
+            let [h, m] = busTimeStr.split(':').map(Number);
             const busDate = new Date(now);
             busDate.setHours(h, m, 0, 0);
 
@@ -205,27 +223,34 @@
         }
 
         function updateBoard() {
-            const now = getCorrectedDate(); // Use offset time
-            
-            // Update Clock
+            const now = getCorrectedDate();
             document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
             
             const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
                                now.getMinutes().toString().padStart(2, '0');
             
-            let nextIndex = scheduleData.findIndex(t => t > currentStr);
+            // Select schedule based on toggle
+            const activeSchedule = isReturnRoute ? scheduleEGHQ : scheduleGrosvenor;
+            const fromLabel = isReturnRoute ? "EGHQ" : "GROSVENOR";
+            const toLabel = isReturnRoute ? "GROSVENOR" : "EGHQ";
+
+            // Normalizing time strings for comparison (adding leading zeros)
+            const normalizedSchedule = activeSchedule.map(t => t.padStart(5, '0'));
+            const normalizedCurrent = currentStr.padStart(5, '0');
+
+            let nextIndex = normalizedSchedule.findIndex(t => t > normalizedCurrent);
             if (nextIndex === -1) nextIndex = 0;
             
             let filtered = [];
             for (let i = 0; i < 3; i++) {
-                filtered.push(scheduleData[(nextIndex + i) % scheduleData.length]);
+                filtered.push(activeSchedule[(nextIndex + i) % activeSchedule.length]);
             }
 
             document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => `
                 <div class="row ${i === 0 ? 'next' : ''}">
                     <div class="col-time">${t}</div>
-                    <div class="col-from">GROSVENOR</div>
-                    <div class="col-to">EGHQ</div>
+                    <div class="col-from">${fromLabel}</div>
+                    <div class="col-to">${toLabel}</div>
                     <div class="col-due">${getCountdown(t, now)}</div>
                     <div class="col-status">${i === 0 ? '<span class="next-label">NEXT</span>' : 'SCHED'}</div>
                 </div>
@@ -241,7 +266,7 @@
                 const jcalData = ICAL.parse(data);
                 const comp = new ICAL.Component(jcalData);
                 const vevents = comp.getAllSubcomponents('vevent');
-                const now = getCorrectedDate(); // Use offset time
+                const now = getCorrectedDate();
                 
                 let events = vevents.map(ve => {
                     const event = new ICAL.Event(ve);
