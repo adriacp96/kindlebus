@@ -264,7 +264,14 @@
             const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
             const proxy = 'https://corsproxy.io/?' + encodeURIComponent(icalUrl);
             try {
+                const eventList = document.getElementById('event-list');
+                eventList.innerHTML = '<div style="padding:20px; font-style:italic;">Syncing Calendar...</div>';
+
                 const response = await fetch(proxy);
+                if (!response.ok) {
+                    throw new Error(`calendar returned ${response.status}`);
+                }
+
                 const data = await response.text();
                 const jcalData = ICAL.parse(data);
                 const comp = new ICAL.Component(jcalData);
@@ -279,18 +286,23 @@
                 .sort((a, b) => a.start - b.start)
                 .slice(0, 4);
 
-                document.getElementById('event-list').innerHTML = events.map(e => {
-                    const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
-                    const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
-                    return `
-                        <div class="event-row">
-                            <div class="event-time">${dateStr}, ${timeStr}</div>
-                            <div class="event-title">${e.title}</div>
-                        </div>
-                    `;
-                }).join('');
+                if (!events.length) {
+                    eventList.innerHTML = '<div style="padding:20px; font-style:italic;">No upcoming events.</div>';
+                } else {
+                    eventList.innerHTML = events.map(e => {
+                        const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
+                        const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
+                        return `
+                            <div class="event-row">
+                                <div class="event-time">${dateStr}, ${timeStr}</div>
+                                <div class="event-title">${e.title}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
             } catch (e) {
-                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Syncing Calendar...</div>';
+                console.error('calendar sync failed', e);
+                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Calendar unavailable.</div>';
             }
         }
 
