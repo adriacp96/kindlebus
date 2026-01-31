@@ -10,6 +10,26 @@
             --bg: #ffffff; 
             --text: #000000; 
             --gray-bg: #eeeeee;
+            --section-border: #ccc;
+            --header-bg: #000;
+            --header-text: #fff;
+            --row-border: #000;
+            --row-alt-bg: #f2f2f2;
+            --event-border: #eee;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #020203;
+                --text: #f8f8f2;
+                --gray-bg: #1b1c24;
+                --section-border: #2f3036;
+                --header-bg: #f8f8f2;
+                --header-text: #020203;
+                --row-border: #2c2d35;
+                --row-alt-bg: #12131a;
+                --event-border: #2c2d35;
+            }
         }
 
         body {
@@ -76,8 +96,8 @@
         .board-headers {
             display: flex;
             padding: 12px;
-            background: #000;
-            color: #fff;
+            background: var(--header-bg);
+            color: var(--header-text);
             font-size: 16px;
             font-weight: 800;
             text-transform: uppercase;
@@ -88,13 +108,13 @@
             display: flex;
             align-items: center;
             padding: 15px 10px;
-            border-bottom: 3px solid #000;
+            border-bottom: 3px solid var(--row-border);
             text-align: center;
         }
 
         .row.next {
             background-color: var(--gray-bg);
-            border-bottom: 10px solid #000;
+            border-bottom: 10px solid var(--row-border);
             padding: 20px 10px;
         }
 
@@ -115,12 +135,12 @@
         #calendar-section {
             margin-top: 20px;
             flex-grow: 1;
-            border-top: 2px solid #ccc;
+            border-top: 2px solid var(--section-border);
         }
 
         .cal-header {
-            background: #000;
-            color: #fff;
+            background: var(--header-bg);
+            color: var(--header-text);
             padding: 8px 12px;
             font-size: 16px;
             font-weight: 800;
@@ -131,7 +151,7 @@
         .event-row {
             display: flex;
             padding: 12px 10px;
-            border-bottom: 2px solid #eee;
+            border-bottom: 2px solid var(--event-border);
             align-items: center;
         }
 
