@@ -280,19 +280,36 @@
             `).join('');
         }
 
+        async function fetchWithFallback(urls) {
+            let lastError;
+            for (const url of urls) {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`calendar proxy returned ${response.status} from ${url}`);
+                    }
+                    return await response.text();
+                } catch (error) {
+                    lastError = error;
+                    console.warn('calendar fetch candidate failed', url, error);
+                }
+            }
+            throw lastError ?? new Error('calendar fetch failed');
+        }
+
         async function fetchCalendar() {
             const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
-            const proxy = 'https://corsproxy.io/?' + encodeURIComponent(icalUrl);
+            const proxies = [
+                icalUrl,
+                'https://r.jina.ai/https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg',
+                'https://r.jina.ai/http://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg',
+                'https://api.allorigins.win/raw?url=https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg'
+            ];
             try {
                 const eventList = document.getElementById('event-list');
                 eventList.innerHTML = '<div style="padding:20px; font-style:italic;">Syncing Calendar...</div>';
 
-                const response = await fetch(proxy);
-                if (!response.ok) {
-                    throw new Error(`calendar returned ${response.status}`);
-                }
-
-                const data = await response.text();
+                const data = await fetchWithFallback(proxies);
                 const jcalData = ICAL.parse(data);
                 const comp = new ICAL.Component(jcalData);
                 const vevents = comp.getAllSubcomponents('vevent');
