@@ -262,36 +262,78 @@
 
         async function fetchCalendar() {
             const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
-            const proxy = 'https://corsproxy.io/?' + encodeURIComponent(icalUrl);
-            try {
-                const response = await fetch(proxy);
-                const data = await response.text();
-                const jcalData = ICAL.parse(data);
-                const comp = new ICAL.Component(jcalData);
-                const vevents = comp.getAllSubcomponents('vevent');
-                const now = getCorrectedDate();
-                
-                let events = vevents.map(ve => {
-                    const event = new ICAL.Event(ve);
-                    return { title: event.summary, start: event.startDate.toJSDate() };
-                })
-                .filter(e => e.start >= now)
-                .sort((a, b) => a.start - b.start)
-                .slice(0, 4);
+            
+            // Try multiple CORS proxies in sequence
+            const proxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?',
+                'https://cors-anywhere.herokuapp.com/'
+            ];
+            
+            for (const proxy of proxies) {
+                try {
+                    const proxyUrl = proxy + encodeURIComponent(icalUrl);
+                    console.log('Trying proxy:', proxy);
+                    const response = await fetch(proxyUrl, { 
+                        method: 'GET',
+                        headers: { 'Accept': 'text/calendar' }
+                    });
+                    
+                    if (!response.ok) {
+                        console.log('Proxy failed with status:', response.status);
+                        continue;
+                    }
+                    
+                    const data = await response.text();
+                    console.log('Fetched data length:', data.length);
+                    
+                    if (!data || data.length < 50) {
+                        console.log('Invalid data received');
+                        continue;
+                    }
+                    
+                    const jcalData = ICAL.parse(data);
+                    const comp = new ICAL.Component(jcalData);
+                    const vevents = comp.getAllSubcomponents('vevent');
+                    console.log('Found events:', vevents.length);
+                    
+                    const now = getCorrectedDate();
+                    
+                    let events = vevents.map(ve => {
+                        const event = new ICAL.Event(ve);
+                        return { title: event.summary, start: event.startDate.toJSDate() };
+                    })
+                    .filter(e => e.start >= now)
+                    .sort((a, b) => a.start - b.start)
+                    .slice(0, 4);
 
-                document.getElementById('event-list').innerHTML = events.map(e => {
-                    const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
-                    const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
-                    return `
-                        <div class="event-row">
-                            <div class="event-time">${dateStr}, ${timeStr}</div>
-                            <div class="event-title">${e.title}</div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (e) {
-                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Syncing Calendar...</div>';
+                    if (events.length === 0) {
+                        document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">No upcoming events</div>';
+                    } else {
+                        document.getElementById('event-list').innerHTML = events.map(e => {
+                            const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
+                            const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
+                            return `
+                                <div class="event-row">
+                                    <div class="event-time">${dateStr}, ${timeStr}</div>
+                                    <div class="event-title">${e.title}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    
+                    console.log('Calendar loaded successfully');
+                    return; // Success, exit function
+                    
+                } catch (err) {
+                    console.error('Error with proxy', proxy, ':', err.message);
+                    // Try next proxy
+                }
             }
+            
+            // All proxies failed
+            console.error('All proxies failed');
+            document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic; color:#999;">Calendar temporarily unavailable</div>';
         }
 
         setInterval(updateBoard, 1000);
