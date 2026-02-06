@@ -25,6 +25,28 @@
             flex-direction: column;
         }
 
+        /* MAIN CONTENT LAYOUT */
+        .main-content {
+            display: flex;
+            gap: 20px;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .schedule-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-panel {
+            flex: 1;
+            border: 3px solid #000;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
         /* HEADER */
         .header {
             display: flex;
@@ -109,6 +131,95 @@
             display: inline-block;
             line-height: 1;
         }
+
+        /* MAP STYLES */
+        .map-header {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #route-map {
+            flex-grow: 1;
+            width: 100%;
+            border: 2px solid #000;
+            background: #fff;
+        }
+
+        .stop-label {
+            font-size: 10px;
+            font-weight: 700;
+            fill: #000;
+        }
+
+        .stop-marker {
+            font-size: 18px;
+        }
+
+        .street-label {
+            font-size: 8px;
+            font-weight: 600;
+            fill: #555;
+            font-style: italic;
+        }
+
+        .distance-label {
+            font-size: 9px;
+            font-weight: 700;
+            fill: #000;
+        }
+
+        .route-line {
+            stroke: #000;
+            stroke-width: 8;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .road-outline {
+            stroke: #666;
+            stroke-width: 12;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .water-area {
+            fill: #e8e8e8;
+        }
+
+        .land-area {
+            fill: #fff;
+        }
+
+        .landmark {
+            fill: #ddd;
+            stroke: #666;
+            stroke-width: 1;
+        }
+
+        .stop-circle {
+            fill: #fff;
+            stroke: #000;
+            stroke-width: 3;
+        }
+
+        .bus-icon {
+            transition: none; /* No transitions for e-ink */
+        }
+
+        .progress-info {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -125,15 +236,60 @@
         </div>
     </header>
 
-    <div class="board-headers">
-        <div style="width: 18%">Time</div>
-        <div style="width: 22%">From</div>
-        <div style="width: 20%">To</div>
-        <div style="width: 25%">Due In</div>
-        <div style="width: 15%">Status</div>
-    </div>
+    <div class="main-content">
+        <div class="schedule-panel">
+            <div class="board-headers">
+                <div style="width: 18%">Time</div>
+                <div style="width: 22%">From</div>
+                <div style="width: 20%">To</div>
+                <div style="width: 25%">Due In</div>
+                <div style="width: 15%">Status</div>
+            </div>
+            <div id="schedule-container"></div>
+        </div>
 
-    <div id="schedule-container"></div>
+        <div class="map-panel">
+            <div class="map-header">
+                <span style="font-size: 20px;">📍</span>
+                <span>DUBAI • Grosvenor → EGHQ • 10.2 KM</span>
+            </div>
+            <svg id="route-map" viewBox="0 0 400 550" preserveAspectRatio="xMidYMid meet">
+                <!-- Background -->
+                <rect class="land-area" x="0" y="0" width="400" height="550" />
+                
+                <!-- Water (Arabian Gulf - left side) -->
+                <path class="water-area" d="M 0 0 L 0 550 L 80 550 Q 90 400, 100 200 Q 105 100, 110 0 Z" />
+                
+                <!-- Landmarks -->
+                <g id="landmarks">
+                    <!-- Will be populated by JavaScript -->
+                </g>
+                
+                <!-- Road outline (gray border) -->
+                <path id="route-outline" class="road-outline" d="M 200 50 L 200 450" />
+                
+                <!-- Route line (main route) -->
+                <path id="route-path" class="route-line" d="M 200 50 L 200 450" />
+                
+                <!-- Street labels -->
+                <g id="street-labels">
+                    <!-- Will be populated by JavaScript -->
+                </g>
+                
+                <!-- Stops -->
+                <g id="stops">
+                    <!-- Will be populated by JavaScript -->
+                </g>
+                
+                <!-- Bus icon -->
+                <g id="bus-position" class="bus-icon">
+                    <circle cx="0" cy="0" r="16" fill="#000" />
+                    <text x="0" y="6" text-anchor="middle" font-size="18" fill="#fff" font-weight="bold">🚌</text>
+                </g>
+            </svg>
+            <div class="progress-info" id="progress-info">Calculating position...</div>
+        </div>
+    </div>
 
     <script>
         let isReturnRoute = false;
@@ -149,7 +305,24 @@
             const busImg = document.getElementById('bus-toggle');
             // Instant flip by toggling class without CSS transition
             busImg.className = isReturnRoute ? 'bus-img bus-flipped' : 'bus-img';
+            
+            // Update map header to show current route direction
+            updateMapHeader();
+            
+            // Redraw map with new direction
+            initializeMap();
+            
             updateBoard();
+            updateBusPosition();
+        }
+        
+        function updateMapHeader() {
+            const fromLabel = isReturnRoute ? 'EGHQ' : 'Grosvenor';
+            const toLabel = isReturnRoute ? 'Grosvenor' : 'EGHQ';
+            const headerSpan = document.querySelector('.map-header span:last-child');
+            if (headerSpan) {
+                headerSpan.innerHTML = `DUBAI • ${fromLabel} → ${toLabel} • 10.2 KM`;
+            }
         }
 
         function getCorrectedDate() {
@@ -213,8 +386,271 @@
             `).join('');
         }
 
+        // ROUTE MAP FUNCTIONALITY
+        // Real Dubai coordinates from Google Maps
+        const EGHQ_COORDS = { lat: 25.2417461, lng: 55.3659608 };
+        const GROSVENOR_COORDS = { lat: 25.2070978, lng: 55.264489 };
+        
+        // Approximate route: Airport Rd → Al Maktoum Rd → Al Khaleej Rd → Sheikh Zayed Road
+        const routeStops = [
+            { name: 'EGHQ', position: 0, coords: EGHQ_COORDS, marker: 'A' },
+            { name: 'Airport Terminal 1', position: 0.12, coords: { lat: 25.245, lng: 55.350 }, marker: '' },
+            { name: 'Deira City Centre', position: 0.28, coords: { lat: 25.251, lng: 55.330 }, marker: '' },
+            { name: 'Al Maktoum Bridge', position: 0.45, coords: { lat: 25.245, lng: 55.310 }, marker: '' },
+            { name: 'Burj Khalifa', position: 0.65, coords: { lat: 25.220, lng: 55.280 }, marker: '' },
+            { name: 'Business Bay', position: 0.82, coords: { lat: 25.210, lng: 55.270 }, marker: '' },
+            { name: 'Grosvenor', position: 1.0, coords: GROSVENOR_COORDS, marker: 'B' }
+        ];
+        
+        // Street names for route segments
+        const routeStreets = [
+            { segment: 0.06, name: 'Airport Rd' },
+            { segment: 0.38, name: 'Al Maktoum Rd' },
+            { segment: 0.72, name: 'Sheikh Zayed Rd' }
+        ];
+
+        const JOURNEY_TIME = 28; // minutes (approximate time from start to end)
+
+        function initializeMap() {
+            const stopsContainer = document.getElementById('stops');
+            const streetLabelsContainer = document.getElementById('street-labels');
+            const landmarksContainer = document.getElementById('landmarks');
+            
+            // Clear existing elements
+            stopsContainer.innerHTML = '';
+            streetLabelsContainer.innerHTML = '';
+            landmarksContainer.innerHTML = '';
+            
+            const svgWidth = 400;
+            const svgHeight = 550;
+            const margin = 50;
+            
+            // Create realistic Dubai route path
+            // Route goes: East (EGHQ) → curves through Deira → crosses creek → South along SZR → West (Grosvenor)
+            const pathPoints = routeStops.map((stop, i) => {
+                const progress = stop.position;
+                
+                // Create a realistic road curve
+                let x, y;
+                if (progress < 0.15) {
+                    // Start - Airport area, moving west
+                    x = 320 - progress * 600;
+                    y = 60 + progress * 100;
+                } else if (progress < 0.35) {
+                    // Deira - curving southwest
+                    const localProgress = (progress - 0.15) / 0.20;
+                    x = 230 - localProgress * 40;
+                    y = 75 + localProgress * 120;
+                } else if (progress < 0.55) {
+                    // Al Maktoum Bridge area - curve west then south
+                    const localProgress = (progress - 0.35) / 0.20;
+                    x = 190 - localProgress * 10;
+                    y = 195 + localProgress * 110;
+                } else if (progress < 0.85) {
+                    // Sheikh Zayed Road - straight south
+                    const localProgress = (progress - 0.55) / 0.30;
+                    x = 180 + localProgress * 20;
+                    y = 305 + localProgress * 130;
+                } else {
+                    // Final approach to Grosvenor - southwest
+                    const localProgress = (progress - 0.85) / 0.15;
+                    x = 200 - localProgress * 40;
+                    y = 435 + localProgress * 65;
+                }
+                
+                return { x, y, stop };
+            });
+            
+            // Create smooth curved path using quadratic bezier curves
+            let pathD = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+            let outlineD = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+            
+            for (let i = 1; i < pathPoints.length; i++) {
+                const curr = pathPoints[i];
+                const prev = pathPoints[i - 1];
+                
+                // Control point for smooth curve
+                const controlX = (prev.x + curr.x) / 2 + (Math.random() - 0.5) * 5;
+                const controlY = (prev.y + curr.y) / 2;
+                
+                const curveCmd = ` Q ${controlX} ${controlY}, ${curr.x} ${curr.y}`;
+                pathD += curveCmd;
+                outlineD += curveCmd;
+            }
+            
+            document.getElementById('route-outline').setAttribute('d', outlineD);
+            document.getElementById('route-path').setAttribute('d', pathD);
+            
+            // Add street name labels
+            routeStreets.forEach(street => {
+                const idx = Math.floor(street.segment * pathPoints.length);
+                if (pathPoints[idx]) {
+                    const { x, y } = pathPoints[idx];
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', x - 15);
+                    text.setAttribute('y', y - 15);
+                    text.setAttribute('class', 'street-label');
+                    text.textContent = street.name;
+                    streetLabelsContainer.appendChild(text);
+                }
+            });
+            
+            // Add landmark boxes
+            const landmarks = [
+                { x: 100, y: 280, w: 30, h: 40, name: 'Burj\nKhalifa' },
+                { x: 280, y: 140, w: 40, h: 30, name: 'Deira' }
+            ];
+            
+            landmarks.forEach(lm => {
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', lm.x);
+                rect.setAttribute('y', lm.y);
+                rect.setAttribute('width', lm.w);
+                rect.setAttribute('height', lm.h);
+                rect.setAttribute('class', 'landmark');
+                landmarksContainer.appendChild(rect);
+            });
+            
+            // Create stop markers along the path
+            pathPoints.forEach(({ x, y, stop }, index) => {
+                if (index === 0 || index === pathPoints.length - 1) {
+                    // Start/End markers (A/B style) - swap based on route direction
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', '12');
+                    circle.setAttribute('fill', '#000');
+                    circle.setAttribute('stroke', '#fff');
+                    circle.setAttribute('stroke-width', '3');
+                    stopsContainer.appendChild(circle);
+                    
+                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    marker.setAttribute('x', x);
+                    marker.setAttribute('y', y + 5);
+                    marker.setAttribute('text-anchor', 'middle');
+                    marker.setAttribute('class', 'stop-marker');
+                    marker.setAttribute('fill', '#fff');
+                    marker.setAttribute('font-weight', 'bold');
+                    // Swap A/B based on route direction
+                    if (isReturnRoute) {
+                        marker.textContent = index === 0 ? 'A' : 'B';
+                    } else {
+                        marker.textContent = index === 0 ? 'B' : 'A';
+                    }
+                    stopsContainer.appendChild(marker);
+                } else {
+                    // Intermediate stops (small dots)
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', '5');
+                    circle.setAttribute('fill', '#fff');
+                    circle.setAttribute('stroke', '#000');
+                    circle.setAttribute('stroke-width', '2');
+                    stopsContainer.appendChild(circle);
+                }
+                
+                // Stop label
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                const offsetX = (index < pathPoints.length / 2) ? 15 : -15;
+                const textAnchor = (index < pathPoints.length / 2) ? 'start' : 'end';
+                text.setAttribute('x', x + offsetX);
+                text.setAttribute('y', y + 4);
+                text.setAttribute('text-anchor', textAnchor);
+                text.setAttribute('class', 'stop-label');
+                text.textContent = stop.name;
+                stopsContainer.appendChild(text);
+            });
+            
+            // Store path points for bus animation
+            window.pathPoints = pathPoints;
+        }
+
+        function updateBusPosition() {
+            const now = getCorrectedDate();
+            const activeSchedule = isReturnRoute ? scheduleEGHQ : scheduleGrosvenor;
+            
+            // Find current and next departure
+            const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                               now.getMinutes().toString().padStart(2, '0');
+            
+            const normalizedSchedule = activeSchedule.map(t => {
+                let [h, m] = t.split(':');
+                return h.padStart(2, '0') + ":" + m.padStart(2, '0');
+            });
+            
+            let nextIndex = normalizedSchedule.findIndex(t => t > currentStr);
+            if (nextIndex === -1) nextIndex = 0;
+            
+            const prevIndex = nextIndex === 0 ? normalizedSchedule.length - 1 : nextIndex - 1;
+            const currentDeparture = activeSchedule[prevIndex];
+            const nextDeparture = activeSchedule[nextIndex];
+            
+            // Calculate if bus is currently en route
+            const [dh, dm] = currentDeparture.split(':').map(Number);
+            const departureTime = new Date(now);
+            departureTime.setHours(dh, dm, 0, 0);
+            
+            if (departureTime > now) {
+                departureTime.setDate(departureTime.getDate() - 1);
+            }
+            
+            const arrivalTime = new Date(departureTime.getTime() + JOURNEY_TIME * 60000);
+            const busIcon = document.getElementById('bus-position');
+            const progressInfo = document.getElementById('progress-info');
+            
+            if (!window.pathPoints) return; // Wait for map to initialize
+            
+            if (now >= departureTime && now <= arrivalTime) {
+                // Bus is en route
+                const elapsed = (now - departureTime) / 60000; // minutes
+                const progress = Math.min(elapsed / JOURNEY_TIME, 1);
+                
+                // If return route, flip the progress
+                const displayProgress = isReturnRoute ? 1 - progress : progress;
+                
+                // Interpolate position along the curved path
+                const pathIndex = Math.min(Math.floor(displayProgress * (window.pathPoints.length - 1)), 
+                                          window.pathPoints.length - 2);
+                const segmentProgress = (displayProgress * (window.pathPoints.length - 1)) - pathIndex;
+                
+                const startPoint = window.pathPoints[pathIndex];
+                const endPoint = window.pathPoints[pathIndex + 1];
+                
+                const x = startPoint.x + (endPoint.x - startPoint.x) * segmentProgress;
+                const y = startPoint.y + (endPoint.y - startPoint.y) * segmentProgress;
+                
+                busIcon.setAttribute('transform', `translate(${x}, ${y})`);
+                busIcon.style.display = 'block';
+                
+                const remainingMins = Math.ceil(JOURNEY_TIME - elapsed);
+                const currentStop = routeStops[Math.floor(displayProgress * (routeStops.length - 1))].name;
+                progressInfo.textContent = `En route • Near ${currentStop} • ${remainingMins} min to destination`;
+            } else {
+                // Bus at station
+                const atStartIndex = isReturnRoute ? 0 : window.pathPoints.length - 1;
+                const atStart = routeStops[atStartIndex];
+                const point = window.pathPoints[atStartIndex];
+                
+                busIcon.setAttribute('transform', `translate(${point.x}, ${point.y})`);
+                busIcon.style.display = 'block';
+                
+                const [nh, nm] = nextDeparture.split(':').map(Number);
+                const nextDepartTime = new Date(now);
+                nextDepartTime.setHours(nh, nm, 0, 0);
+                if (nextDepartTime < now) nextDepartTime.setDate(nextDepartTime.getDate() + 1);
+                
+                const minsToNext = Math.round((nextDepartTime - now) / 60000);
+                progressInfo.textContent = `At ${atStart.name} • Departs in ${minsToNext} min`;
+            }
+        }
+
         setInterval(updateBoard, 1000);
         updateBoard();
+        updateMapHeader();
+        initializeMap();
+        setInterval(updateBusPosition, 1000);
+        updateBusPosition();
     </script>
 </body>
 </html>
