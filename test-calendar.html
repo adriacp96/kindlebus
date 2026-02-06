@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calendar Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
+</head>
+<body>
+    <h1>Calendar Fetch Test</h1>
+    <div id="output" style="font-family: monospace; white-space: pre-wrap;"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        const log = (msg) => {
+            output.textContent += msg + '\n';
+            console.log(msg);
+        };
+
+        async function testCalendar() {
+            const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
+            
+            const strategies = [
+                {
+                    name: 'Direct fetch',
+                    fn: () => fetch(icalUrl).then(r => r.text())
+                },
+                {
+                    name: 'AllOrigins /get',
+                    fn: () => fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(icalUrl))
+                        .then(r => r.json()).then(data => data.contents)
+                },
+                {
+                    name: 'AllOrigins /raw',
+                    fn: () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(icalUrl))
+                        .then(r => r.text())
+                },
+                {
+                    name: 'ThingProxy',
+                    fn: () => fetch('https://thingproxy.freeboard.io/fetch/' + icalUrl).then(r => r.text())
+                },
+                {
+                    name: 'CorsProxy.io',
+                    fn: () => fetch('https://corsproxy.io/?' + encodeURIComponent(icalUrl)).then(r => r.text())
+                },
+                {
+                    name: 'Cors.sh',
+                    fn: () => fetch('https://cors.sh/' + icalUrl, {
+                        headers: { 'x-requested-with': 'XMLHttpRequest' }
+                    }).then(r => r.text())
+                }
+            ];
+            
+            for (let strategy of strategies) {
+                try {
+                    log(`\n🔄 Testing: ${strategy.name}...`);
+                    const data = await strategy.fn();
+                    
+                    if (!data) {
+                        log(`❌ No data received`);
+                        continue;
+                    }
+                    
+                    log(`✓ Data length: ${data.length}`);
+                    
+                    if (!data.includes('BEGIN:VCALENDAR')) {
+                        log(`❌ Not valid iCal data`);
+                        log(`First 200 chars: ${data.substring(0, 200)}`);
+                        continue;
+                    }
+                    
+                    const jcalData = ICAL.parse(data);
+                    const comp = new ICAL.Component(jcalData);
+                    const vevents = comp.getAllSubcomponents('vevent');
+                    
+                    log(`✅ SUCCESS! Found ${vevents.length} events`);
+                    
+                    if (vevents.length > 0) {
+                        const event = new ICAL.Event(vevents[0]);
+                        log(`First event: ${event.summary} at ${event.startDate.toJSDate()}`);
+                    }
+                    
+                    log(`\n✨ ${strategy.name} WORKS! Use this one.`);
+                    return;
+                    
+                } catch (err) {
+                    log(`❌ Error: ${err.message}`);
+                }
+            }
+            
+            log(`\n❌ All strategies failed`);
+        }
+        
+        testCalendar();
+    </script>
+</body>
+</html>

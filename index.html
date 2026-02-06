@@ -263,39 +263,46 @@
         async function fetchCalendar() {
             const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
             
-            // Try multiple CORS proxies in sequence
-            const proxies = [
-                'https://api.allorigins.win/raw?url=',
-                'https://corsproxy.io/?',
-                'https://cors-anywhere.herokuapp.com/'
+            // Try different fetch strategies
+            const strategies = [
+                // Strategy 1: Local proxy (most reliable)
+                () => fetch('http://localhost:3001/calendar').then(r => r.text()),
+                
+                // Strategy 2: Direct fetch (might work on Kindle)
+                () => fetch(icalUrl).then(r => r.text()),
+                
+                // Strategy 3: Try allorigins with get endpoint
+                () => fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(icalUrl))
+                    .then(r => r.json()).then(data => data.contents),
+                
+                // Strategy 4: Try thingproxy
+                () => fetch('https://thingproxy.freeboard.io/fetch/' + icalUrl).then(r => r.text()),
+                
+                // Strategy 5: Try corsproxy.io with timeout
+                () => Promise.race([
+                    fetch('https://corsproxy.io/?' + encodeURIComponent(icalUrl)).then(r => r.text()),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+                ]),
+                
+                // Strategy 6: Direct fetch with mode
+                () => fetch(icalUrl, { mode: 'cors', cache: 'no-cache' }).then(r => r.text())
             ];
             
-            for (const proxy of proxies) {
+            for (let i = 0; i < strategies.length; i++) {
                 try {
-                    const proxyUrl = proxy + encodeURIComponent(icalUrl);
-                    console.log('Trying proxy:', proxy);
-                    const response = await fetch(proxyUrl, { 
-                        method: 'GET',
-                        headers: { 'Accept': 'text/calendar' }
-                    });
+                    console.log('Trying strategy', i + 1);
+                    const data = await strategies[i]();
+                    console.log('Got data, length:', data ? data.length : 0);
                     
-                    if (!response.ok) {
-                        console.log('Proxy failed with status:', response.status);
-                        continue;
-                    }
-                    
-                    const data = await response.text();
-                    console.log('Fetched data length:', data.length);
-                    
-                    if (!data || data.length < 50) {
-                        console.log('Invalid data received');
+                    if (!data || data.length < 100 || !data.includes('BEGIN:VCALENDAR')) {
+                        console.log('Invalid calendar data');
                         continue;
                     }
                     
                     const jcalData = ICAL.parse(data);
                     const comp = new ICAL.Component(jcalData);
                     const vevents = comp.getAllSubcomponents('vevent');
-                    console.log('Found events:', vevents.length);
+                    console.log('Found', vevents.length, 'events');
                     
                     const now = getCorrectedDate();
                     
@@ -322,18 +329,17 @@
                         }).join('');
                     }
                     
-                    console.log('Calendar loaded successfully');
-                    return; // Success, exit function
+                    console.log('✓ Calendar loaded successfully via strategy', i + 1);
+                    return; // Success!
                     
                 } catch (err) {
-                    console.error('Error with proxy', proxy, ':', err.message);
-                    // Try next proxy
+                    console.error('Strategy', i + 1, 'failed:', err.message);
                 }
             }
             
-            // All proxies failed
-            console.error('All proxies failed');
-            document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic; color:#999;">Calendar temporarily unavailable</div>';
+            // All strategies failed
+            console.error('All fetch strategies failed');
+            document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic; color:#999;">Calendar sync failed. Check console for details.</div>';
         }
 
         setInterval(updateBoard, 1000);
