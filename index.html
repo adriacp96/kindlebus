@@ -257,39 +257,23 @@
                 <span style="font-size: 16px;">•</span>
                 <span>DUBAI • Grosvenor → EGHQ • 14.9 KM</span>
             </div>
-            <svg id="route-map" viewBox="0 0 700 300" preserveAspectRatio="xMidYMid meet">
-                <!-- Background -->
-                <rect class="land-area" x="0" y="0" width="700" height="300" />
+            <svg id="route-map" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+                <rect x="0" y="0" width="1200" height="800" fill="#fff"></rect>
                 
-                <!-- Water (Arabian Gulf - top side) -->
-                <path class="water-area" d="M 700 0 L 0 0 L 0 60 Q 200 70, 400 75 Q 550 78, 700 80 Z" />
+                <g id="roads"></g>
                 
-                <!-- Landmarks -->
-                <g id="landmarks">
-                    <!-- Will be populated by JavaScript -->
-                </g>
+                <path id="routeOutline" class="routeOutline" d=""></path>
+                <path id="routeMain" class="routeMain" d=""></path>
                 
-                <!-- Road outline (gray border) -->
-                <path id="route-outline" class="road-outline" d="M 50 150 L 650 150" />
-                
-                <!-- Route line (main route) -->
-                <path id="route-path" class="route-line" d="M 50 150 L 650 150" />
-                
-                <!-- Street labels -->
-                <g id="street-labels">
-                    <!-- Will be populated by JavaScript -->
-                </g>
-                
-                <!-- Stops -->
-                <g id="stops">
-                    <!-- Will be populated by JavaScript -->
-                </g>
+                <g id="stops"></g>
                 
                 <!-- Bus icon -->
                 <g id="bus-position" class="bus-icon">
                     <circle cx="0" cy="0" r="16" fill="#000" />
                     <text x="0" y="6" text-anchor="middle" font-size="18" fill="#fff" font-weight="bold">⛟</text>
                 </g>
+                
+                <text id="status" class="msg" x="24" y="34" style="font: 700 14px/1 system-ui; fill:#000;">Loading map...</text>
             </svg>
             <div class="progress-info" id="progress-info">Calculating position...</div>
         </div>
@@ -297,12 +281,29 @@
 
     <script>
         let isReturnRoute = false;
+        let mapProjection = null;
+        let routeGeometry = [];
 
         // Departure times from EGHQ 
         const scheduleEGHQ = ["0:15", "0:35", "0:55", "1:15", "1:35", "1:55", "02:25", "02:55", "03:25", "03:55", "04:20", "04:40", "05:00", "5:25", "5:45", "6:05", "6:25", "6:45", "7:10", "7:35", "8:00", "8:25", "8:50", "9:20", "9:45", "10:10", "10:35", "11:00", "11:25", "11:50", "12:10", "12:30", "12:50", "13:10", "13:30", "13:50", "14:15", "14:40", "15:05", "15:30", "15:55", "16:20", "16:45", "17:10", "17:35", "18:00", "18:25", "18:50", "19:15", "19:40", "20:05", "20:30", "20:55", "21:20", "21:45", "22:10", "22:35", "23:00", "23:25", "23:50"];
         
         // Departure times from Grosvenor (third column of document) 
         const scheduleGrosvenor = ["0:43", "1:03", "1:23", "1:43", "2:03", "2:23", "2:53", "3:23", "3:53", "4:23", "4:48", "5:08", "5:28", "5:53", "6:13", "6:33", "6:53", "7:13", "7:38", "8:03", "8:28", "8:53", "9:18", "9:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
+
+        // Stops (A -> B -> C)
+        const stops = [
+            { name: "Emirates Group HQ", lat: 25.2417461, lng: 55.3659608, badge: "A", kind: "start" },
+            { name: "Pink Building", lat: 25.2097705, lng: 55.2731029, badge: "B", kind: "mid" },
+            { name: "Grosvenor", lat: 25.2231508, lng: 55.2801991, badge: "C", kind: "end" }
+        ];
+
+        // OSM/OSRM configuration
+        const OSRM_PROFILE = "driving";
+        const OSRM_URL = "https://router.project-osrm.org/route/v1/";
+        const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+        const BBOX_PAD_DEG = 0.01;
+        const MAJOR_HIGHWAYS = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
+        const MINOR_HIGHWAYS = new Set(["unclassified", "residential", "service", "living_street", "road"]);
 
         function toggleRoute() {
             isReturnRoute = !isReturnRoute;
@@ -391,206 +392,208 @@
         }
 
         // ROUTE MAP FUNCTIONALITY
-        // Actual route from Google Maps: EGHQ → Pink Building → Grosvenor (14.9 km, 28 min)
-        const EGHQ_COORDS = { lat: 25.2417461, lng: 55.3659608 };
-        const PINK_BUILDING_COORDS = { lat: 25.2097705, lng: 55.2731029 };
-        const GROSVENOR_COORDS = { lat: 25.2231508, lng: 55.2801991 };
-        
-        // Actual route: D89 → E11 (Sheikh Zayed Road) → Financial Centre Rd
-        const routeStops = [
-            { name: 'EGHQ', position: 0, coords: EGHQ_COORDS, marker: 'A' },
-            { name: 'Airport Exit', position: 0.08, coords: { lat: 25.240, lng: 55.350 }, marker: '' },
-            { name: 'Al Quoz', position: 0.25, coords: { lat: 25.232, lng: 55.320 }, marker: '' },
-            { name: 'Business Bay', position: 0.48, coords: { lat: 25.220, lng: 55.290 }, marker: '' },
-            { name: 'DIFC', position: 0.68, coords: { lat: 25.215, lng: 55.275 }, marker: '' },
-            { name: 'Pink Building', position: 0.85, coords: PINK_BUILDING_COORDS, marker: 'Via' },
-            { name: 'Trade Centre', position: 0.92, coords: { lat: 25.218, lng: 55.278 }, marker: '' },
-            { name: 'Grosvenor', position: 1.0, coords: GROSVENOR_COORDS, marker: 'B' }
-        ];
-        
-        // Street names for route segments
-        const routeStreets = [
-            { segment: 0.05, name: 'D89' },
-            { segment: 0.50, name: 'E11 - Sheikh Zayed Rd' },
-            { segment: 0.88, name: 'Financial Centre Rd' }
-        ];
-
         const JOURNEY_TIME = 28; // minutes (Google Maps: 14.9 km via E11)
 
-        function initializeMap() {
-            const stopsContainer = document.getElementById('stops');
-            const streetLabelsContainer = document.getElementById('street-labels');
-            const landmarksContainer = document.getElementById('landmarks');
-            
-            // Clear existing elements
-            stopsContainer.innerHTML = '';
-            streetLabelsContainer.innerHTML = '';
-            landmarksContainer.innerHTML = '';
-            
-            const svgWidth = 700;
-            const svgHeight = 300;
-            const margin = 50;
-            
-            // Create realistic Dubai route path - NOW HORIZONTAL
-            // Actual Google Maps route: Right (EGHQ) → Southwest on E11 → Pink Building (south) → Loop back to Grosvenor (north)
-            const pathPoints = routeStops.map((stop, i) => {
-                const progress = stop.position;
-                
-                // Create route following E11 highway - FLIPPED (Grosvenor left, EGHQ right)
-                let x, y;
-                if (progress < 0.1) {
-                    // EGHQ - start from right side
-                    const localProgress = progress / 0.1;
-                    x = 640 - localProgress * 50;
-                    y = 135 + localProgress * 15;
-                } else if (progress < 0.3) {
-                    // Onto E11, heading southwest
-                    const localProgress = (progress - 0.1) / 0.2;
-                    x = 590 - localProgress * 120;
-                    y = 150 + localProgress * 35;
-                } else if (progress < 0.55) {
-                    // Along E11 - main highway section
-                    const localProgress = (progress - 0.3) / 0.25;
-                    x = 470 - localProgress * 150;
-                    y = 185 + localProgress * 25;
-                } else if (progress < 0.75) {
-                    // Approaching DIFC/Financial area
-                    const localProgress = (progress - 0.55) / 0.2;
-                    x = 320 - localProgress * 100;
-                    y = 210 + localProgress * 15;
-                } else if (progress < 0.87) {
-                    // To Pink Building (southernmost point)
-                    const localProgress = (progress - 0.75) / 0.12;
-                    x = 220 - localProgress * 60;
-                    y = 225 + localProgress * 10;
-                } else {
-                    // Loop back north to Grosvenor
-                    const localProgress = (progress - 0.87) / 0.13;
-                    x = 160 - localProgress * 90;
-                    y = 235 - localProgress * 45;
-                }
-                
-                return { x, y, stop };
-            });
-            
-            // Create smooth curved path using quadratic bezier curves
-            let pathD = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
-            let outlineD = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
-            
-            for (let i = 1; i < pathPoints.length; i++) {
-                const curr = pathPoints[i];
-                const prev = pathPoints[i - 1];
-                
-                // Control point for smooth curve
-                const controlX = (prev.x + curr.x) / 2;
-                const controlY = (prev.y + curr.y) / 2 + (Math.random() - 0.5) * 5;
-                
-                const curveCmd = ` Q ${controlX} ${controlY}, ${curr.x} ${curr.y}`;
-                pathD += curveCmd;
-                outlineD += curveCmd;
+        // SVG helper functions
+        function el(name, attrs = {}) {
+            const n = document.createElementNS("http://www.w3.org/2000/svg", name);
+            for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v);
+            return n;
+        }
+
+        function setStatus(t) {
+            const statusEl = document.getElementById("status");
+            if (statusEl) statusEl.textContent = t;
+        }
+
+        // Web Mercator projection
+        function mercX(lng) { return (lng + 180) / 360; }
+        function mercY(lat) {
+            const rad = lat * Math.PI / 180;
+            const a = Math.log(Math.tan(Math.PI/4 + rad/2));
+            return (1 - a / Math.PI) / 2;
+        }
+
+        function boundsFromLatLng(points) {
+            let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+            for (const p of points) {
+                minLat = Math.min(minLat, p.lat);
+                maxLat = Math.max(maxLat, p.lat);
+                minLng = Math.min(minLng, p.lng);
+                maxLng = Math.max(maxLng, p.lng);
             }
+            return { minLat, maxLat, minLng, maxLng };
+        }
+
+        function makeProjector(bounds) {
+            const W = 1200, H = 800, PAD = 40;
             
-            document.getElementById('route-outline').setAttribute('d', outlineD);
-            document.getElementById('route-path').setAttribute('d', pathD);
-            
-            // Add street name labels
-            routeStreets.forEach(street => {
-                const idx = Math.floor(street.segment * pathPoints.length);
-                if (pathPoints[idx]) {
-                    const { x, y } = pathPoints[idx];
-                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('x', x);
-                    text.setAttribute('y', y - 20);
-                    text.setAttribute('class', 'street-label');
-                    text.setAttribute('text-anchor', 'middle');
-                    text.textContent = street.name;
-                    streetLabelsContainer.appendChild(text);
+            const b = {
+                minLat: bounds.minLat - BBOX_PAD_DEG,
+                maxLat: bounds.maxLat + BBOX_PAD_DEG,
+                minLng: bounds.minLng - BBOX_PAD_DEG,
+                maxLng: bounds.maxLng + BBOX_PAD_DEG
+            };
+
+            const x1 = mercX(b.minLng), x2 = mercX(b.maxLng);
+            const y1 = mercY(b.maxLat), y2 = mercY(b.minLat);
+
+            const sx = (W - 2*PAD) / (x2 - x1);
+            const sy = (H - 2*PAD) / (y2 - y1);
+            const s = Math.min(sx, sy);
+
+            const mapW = (x2 - x1) * s;
+            const mapH = (y2 - y1) * s;
+            const ox = (W - mapW)/2 - x1*s;
+            const oy = (H - mapH)/2 - y1*s;
+
+            return function project(lng, lat) {
+                const x = mercX(lng) * s + ox;
+                const y = mercY(lat) * s + oy;
+                return { x, y };
+            };
+        }
+
+        function pointsToPathD(pts) {
+            if (!pts.length) return "";
+            let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+            for (let i=1; i<pts.length; i++) {
+                d += ` L ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
+            }
+            return d;
+        }
+
+        // Fetch route from OSRM
+        async function fetchRoute() {
+            const coords = stops.map(s => `${s.lng},${s.lat}`).join(";");
+            const url = `${OSRM_URL}${OSRM_PROFILE}/${coords}?overview=full&geometries=geojson&steps=false`;
+            const res = await fetch(url, { cache: "no-store" });
+            const data = await res.json();
+            const r = data.routes?.[0];
+            if (!r?.geometry?.coordinates?.length) throw new Error("OSRM: no route");
+            return r.geometry.coordinates.map(([lng,lat]) => ({ lat, lng }));
+        }
+
+        // Fetch roads from Overpass
+        async function fetchRoads(bbox) {
+            const south = bbox.minLat - BBOX_PAD_DEG;
+            const west = bbox.minLng - BBOX_PAD_DEG;
+            const north = bbox.maxLat + BBOX_PAD_DEG;
+            const east = bbox.maxLng + BBOX_PAD_DEG;
+
+            const query = `
+[out:json][timeout:25];
+(
+  way["highway"](${south},${west},${north},${east});
+);
+out body;
+>;
+out skel qt;
+            `.trim();
+
+            const res = await fetch(OVERPASS_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+                body: "data=" + encodeURIComponent(query)
+            });
+
+            const data = await res.json();
+            const nodes = new Map();
+            const ways = [];
+
+            for (const elem of data.elements) {
+                if (elem.type === "node") nodes.set(elem.id, { lat: elem.lat, lng: elem.lon });
+                if (elem.type === "way") ways.push(elem);
+            }
+
+            const polylines = [];
+            for (const w of ways) {
+                const hw = w.tags?.highway || "";
+                const kind = MAJOR_HIGHWAYS.has(hw) ? "major" : (MINOR_HIGHWAYS.has(hw) ? "minor" : "minor");
+
+                const pts = [];
+                for (const nid of (w.nodes || [])) {
+                    const n = nodes.get(nid);
+                    if (n) pts.push(n);
                 }
-            });
-            
-            // Add landmark boxes
-            const landmarks = [
-                { x: 150, y: 120, w: 45, h: 35, name: 'Trade\nCentre' },
-                { x: 270, y: 140, w: 40, h: 30, name: 'DIFC' },
-                { x: 420, y: 115, w: 55, h: 30, name: 'Business\nBay' },
-                { x: 180, y: 245, w: 40, h: 25, name: 'Pink\nBldg', style: 'font-size: 8px;' }
-            ];
-            
-            landmarks.forEach(lm => {
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', lm.x);
-                rect.setAttribute('y', lm.y);
-                rect.setAttribute('width', lm.w);
-                rect.setAttribute('height', lm.h);
-                rect.setAttribute('class', 'landmark');
-                landmarksContainer.appendChild(rect);
-            });
-            
-            // Create stop markers along the path
-            pathPoints.forEach(({ x, y, stop }, index) => {
-                if (index === 0 || index === pathPoints.length - 1) {
-                    // Start/End markers (A/B style) - swap based on route direction
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', x);
-                    circle.setAttribute('cy', y);
-                    circle.setAttribute('r', '12');
-                    circle.setAttribute('fill', '#000');
-                    circle.setAttribute('stroke', '#fff');
-                    circle.setAttribute('stroke-width', '3');
-                    stopsContainer.appendChild(circle);
-                    
-                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    marker.setAttribute('x', x);
-                    marker.setAttribute('y', y + 5);
-                    marker.setAttribute('text-anchor', 'middle');
-                    marker.setAttribute('class', 'stop-marker');
-                    marker.setAttribute('fill', '#fff');
-                    marker.setAttribute('font-weight', 'bold');
-                    // Swap A/B based on route direction
-                    if (isReturnRoute) {
-                        marker.textContent = index === 0 ? 'A' : 'B';
-                    } else {
-                        marker.textContent = index === 0 ? 'B' : 'A';
-                    }
-                    stopsContainer.appendChild(marker);
-                } else if (stop.marker === 'Via') {
-                    // Pink Building waypoint marker
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', x);
-                    circle.setAttribute('cy', y);
-                    circle.setAttribute('r', '8');
-                    circle.setAttribute('fill', '#666');
-                    circle.setAttribute('stroke', '#fff');
-                    circle.setAttribute('stroke-width', '2');
-                    stopsContainer.appendChild(circle);
-                } else {
-                    // Intermediate stops (small dots)
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', x);
-                    circle.setAttribute('cy', y);
-                    circle.setAttribute('r', '5');
-                    circle.setAttribute('fill', '#fff');
-                    circle.setAttribute('stroke', '#000');
-                    circle.setAttribute('stroke-width', '2');
-                    stopsContainer.appendChild(circle);
-                }
-                
-                // Stop label - adjust position based on location
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                const offsetY = (y < 180) ? -10 : 20;
-                text.setAttribute('x', x);
-                text.setAttribute('y', y + offsetY);
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('class', 'stop-label');
-                text.textContent = stop.name;
-                stopsContainer.appendChild(text);
-            });
-            
-            // Store path points for bus animation
-            window.pathPoints = pathPoints;
+                if (pts.length >= 2) polylines.push({ kind, pts });
+            }
+            return polylines;
+        }
+
+        // Render functions
+        function renderRoads(roadPolylines, project) {
+            const gRoads = document.getElementById("roads");
+            gRoads.innerHTML = "";
+
+            const sorted = roadPolylines.slice().sort((a,b) => (a.kind === "major") - (b.kind === "major"));
+            for (const r of sorted) {
+                const pts = r.pts.map(p => project(p.lng, p.lat));
+                const d = pointsToPathD(pts);
+                const path = el("path", {
+                    d,
+                    class: r.kind === "major" ? "roadMajor" : "roadMinor"
+                });
+                gRoads.appendChild(path);
+            }
+        }
+
+        function renderRoute(routePoints, project) {
+            const pts = routePoints.map(p => project(p.lng, p.lat));
+            const d = pointsToPathD(pts);
+            document.getElementById("routeOutline").setAttribute("d", d);
+            document.getElementById("routeMain").setAttribute("d", d);
+        }
+
+        function renderStops(project) {
+            const gStops = document.getElementById("stops");
+            gStops.innerHTML = "";
+            for (const s of stops) {
+                const p = project(s.lng, s.lat);
+
+                const c = el("circle", {
+                    cx: p.x, cy: p.y, r: 10,
+                    class: `stopDot ${s.kind}`
+                });
+                gStops.appendChild(c);
+
+                const t = el("text", {
+                    x: p.x + 14,
+                    y: p.y + 6,
+                    class: "badge"
+                });
+                t.textContent = s.badge;
+                gStops.appendChild(t);
+            }
+        }
+
+        // Main map initialization
+        async function initializeMap() {
+            try {
+                setStatus("Loading route…");
+                const route = await fetchRoute();
+                routeGeometry = route;
+
+                const b = boundsFromLatLng(route);
+                mapProjection = makeProjector(b);
+
+                setStatus("Loading roads…");
+                const roads = await fetchRoads(b);
+
+                setStatus("Rendering…");
+                renderRoads(roads, mapProjection);
+                renderRoute(route, mapProjection);
+                renderStops(mapProjection);
+
+                setStatus("");
+            } catch (e) {
+                setStatus("Failed: " + (e?.message || e));
+            }
         }
 
         function updateBusPosition() {
+            if (!mapProjection || !routeGeometry.length) return;
+
             const now = getCorrectedDate();
             const activeSchedule = isReturnRoute ? scheduleEGHQ : scheduleGrosvenor;
             
@@ -623,57 +626,58 @@
             const busIcon = document.getElementById('bus-position');
             const progressInfo = document.getElementById('progress-info');
             
-            if (!window.pathPoints) return; // Wait for map to initialize
-            
             if (now >= departureTime && now <= arrivalTime) {
                 // Bus is en route
-                const elapsed = (now - departureTime) / 60000; // minutes
+                const elapsed = (now - departureTime) / 60000;
                 const progress = Math.min(elapsed / JOURNEY_TIME, 1);
                 
-                // If return route, flip the progress
-                const displayProgress = isReturnRoute ? 1 - progress : progress;
+                // Calculate position along route geometry
+                const routeIndex = Math.min(
+                    Math.floor(progress * (routeGeometry.length - 1)),
+                    routeGeometry.length - 2
+                );
+                const segmentProgress = (progress * (routeGeometry.length - 1)) - routeIndex;
                 
-                // Interpolate position along the curved path
-                const pathIndex = Math.min(Math.floor(displayProgress * (window.pathPoints.length - 1)), 
-                                          window.pathPoints.length - 2);
-                const segmentProgress = (displayProgress * (window.pathPoints.length - 1)) - pathIndex;
+                const startPoint = routeGeometry[routeIndex];
+                const endPoint = routeGeometry[routeIndex + 1];
                 
-                const startPoint = window.pathPoints[pathIndex];
-                const endPoint = window.pathPoints[pathIndex + 1];
+                const currentLat = startPoint.lat + (endPoint.lat - startPoint.lat) * segmentProgress;
+                const currentLng = startPoint.lng + (endPoint.lng - startPoint.lng) * segmentProgress;
                 
-                const x = startPoint.x + (endPoint.x - startPoint.x) * segmentProgress;
-                const y = startPoint.y + (endPoint.y - startPoint.y) * segmentProgress;
+                const { x, y } = mapProjection(currentLng, currentLat);
                 
-                // Determine if bus should face left or right (flip horizontally)
-                const dx = endPoint.x - startPoint.x;
-                const scaleX = dx < 0 ? -1 : 1; // Flip if going left
+                // Determine bus direction (flip horizontally if going west)
+                const dx = endPoint.lng - startPoint.lng;
+                const scaleX = dx < 0 ? -1 : 1;
                 
                 busIcon.setAttribute('transform', `translate(${x}, ${y}) scale(${scaleX}, 1)`);
                 busIcon.style.display = 'block';
                 
                 const remainingMins = Math.ceil(JOURNEY_TIME - elapsed);
-                const currentStop = routeStops[Math.floor(displayProgress * (routeStops.length - 1))].name;
-                progressInfo.textContent = `En route • Near ${currentStop} • ${remainingMins} min to destination`;
-            } else {
-                // Bus at station
-                const atStartIndex = isReturnRoute ? 0 : window.pathPoints.length - 1;
-                const atStart = routeStops[atStartIndex];
-                const point = window.pathPoints[atStartIndex];
                 
-                // Determine direction bus will face when departing
-                let scaleX = 1;
-                if (isReturnRoute && window.pathPoints.length > 1) {
-                    // Return route: going from index 0 to 1
-                    const dx = window.pathPoints[1].x - window.pathPoints[0].x;
-                    scaleX = dx < 0 ? -1 : 1;
-                } else if (!isReturnRoute && window.pathPoints.length > 1) {
-                    // Forward route: going from last to second-last (reversed)
-                    const lastIdx = window.pathPoints.length - 1;
-                    const dx = window.pathPoints[lastIdx - 1].x - window.pathPoints[lastIdx].x;
-                    scaleX = dx < 0 ? -1 : 1;
+                // Find nearest stop
+                let nearestStop = stops[0];
+                let minDist = Infinity;
+                for (const stop of stops) {
+                    const dist = Math.abs(stop.lat - currentLat) + Math.abs(stop.lng - currentLng);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestStop = stop;
+                    }
                 }
                 
-                busIcon.setAttribute('transform', `translate(${point.x}, ${point.y}) scale(${scaleX}, 1)`);
+                progressInfo.textContent = `En route • Near ${nearestStop.name} • ${remainingMins} min to destination`;
+            } else {
+                // Bus at station
+                const atStop = isReturnRoute ? stops[0] : stops[stops.length - 1];
+                const { x, y } = mapProjection(atStop.lng, atStop.lat);
+                
+                // Determine direction for parked bus
+                const nextStop = isReturnRoute ? stops[1] : stops[stops.length - 2];
+                const dx = nextStop.lng - atStop.lng;
+                const scaleX = dx < 0 ? -1 : 1;
+                
+                busIcon.setAttribute('transform', `translate(${x}, ${y}) scale(${scaleX}, 1)`);
                 busIcon.style.display = 'block';
                 
                 const [nh, nm] = nextDeparture.split(':').map(Number);
@@ -682,7 +686,7 @@
                 if (nextDepartTime < now) nextDepartTime.setDate(nextDepartTime.getDate() + 1);
                 
                 const minsToNext = Math.round((nextDepartTime - now) / 60000);
-                progressInfo.textContent = `At ${atStart.name} • Departs in ${minsToNext} min`;
+                progressInfo.textContent = `At ${atStop.name} • Departs in ${minsToNext} min`;
             }
         }
 
