@@ -28,13 +28,14 @@
         /* MAIN CONTENT LAYOUT */
         .main-content {
             display: flex;
-            gap: 20px;
+            flex-direction: column;
+            gap: 15px;
             flex-grow: 1;
             overflow: hidden;
         }
 
         .schedule-panel {
-            flex: 1;
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
         }
@@ -42,9 +43,10 @@
         .map-panel {
             flex: 1;
             border: 3px solid #000;
-            padding: 15px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
 
         /* HEADER */
@@ -134,14 +136,14 @@
 
         /* MAP STYLES */
         .map-header {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         #route-map {
@@ -149,6 +151,8 @@
             width: 100%;
             border: 2px solid #000;
             background: #fff;
+            min-height: 250px;
+            max-height: 350px;
         }
 
         .stop-label {
@@ -215,9 +219,9 @@
         }
 
         .progress-info {
-            margin-top: 10px;
+            margin-top: 5px;
             text-align: center;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
         }
     </style>
@@ -250,7 +254,7 @@
 
         <div class="map-panel">
             <div class="map-header">
-                <span style="font-size: 20px;">📍</span>
+                <span style="font-size: 16px;">📍</span>
                 <span>DUBAI • Grosvenor → EGHQ • 10.2 KM</span>
             </div>
             <svg id="route-map" viewBox="0 0 400 550" preserveAspectRatio="xMidYMid meet">
