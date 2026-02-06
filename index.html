@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kindle Bus</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
     <style>
         :root {
             --bg: #ffffff; 
@@ -110,47 +109,6 @@
             display: inline-block;
             line-height: 1;
         }
-
-        /* CALENDAR SECTION */
-        #calendar-section {
-            margin-top: 20px;
-            flex-grow: 1;
-            border-top: 2px solid #ccc;
-        }
-
-        .cal-header {
-            background: #000;
-            color: #fff;
-            padding: 8px 12px;
-            font-size: 16px;
-            font-weight: 800;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .event-row {
-            display: flex;
-            padding: 12px 10px;
-            border-bottom: 2px solid #eee;
-            align-items: center;
-        }
-
-        .event-time { 
-            width: 180px; 
-            font-weight: 800; 
-            font-size: 18px; 
-            text-transform: uppercase;
-            color: #444;
-        }
-        
-        .event-title { 
-            flex-grow: 1; 
-            font-size: 20px; 
-            font-weight: 700; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
     </style>
 </head>
 <body>
@@ -176,11 +134,6 @@
     </div>
 
     <div id="schedule-container"></div>
-
-    <div id="calendar-section">
-        <div class="cal-header">Calendar Events</div>
-        <div id="event-list"></div>
-    </div>
 
     <script>
         let isReturnRoute = false;
@@ -260,92 +213,8 @@
             `).join('');
         }
 
-        async function fetchCalendar() {
-            const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
-            
-            // Try different fetch strategies
-            const strategies = [
-                // Strategy 1: Local proxy (most reliable)
-                () => fetch('http://localhost:3001/calendar').then(r => r.text()),
-                
-                // Strategy 2: Direct fetch (might work on Kindle)
-                () => fetch(icalUrl).then(r => r.text()),
-                
-                // Strategy 3: Try allorigins with get endpoint
-                () => fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(icalUrl))
-                    .then(r => r.json()).then(data => data.contents),
-                
-                // Strategy 4: Try thingproxy
-                () => fetch('https://thingproxy.freeboard.io/fetch/' + icalUrl).then(r => r.text()),
-                
-                // Strategy 5: Try corsproxy.io with timeout
-                () => Promise.race([
-                    fetch('https://corsproxy.io/?' + encodeURIComponent(icalUrl)).then(r => r.text()),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-                ]),
-                
-                // Strategy 6: Direct fetch with mode
-                () => fetch(icalUrl, { mode: 'cors', cache: 'no-cache' }).then(r => r.text())
-            ];
-            
-            for (let i = 0; i < strategies.length; i++) {
-                try {
-                    console.log('Trying strategy', i + 1);
-                    const data = await strategies[i]();
-                    console.log('Got data, length:', data ? data.length : 0);
-                    
-                    if (!data || data.length < 100 || !data.includes('BEGIN:VCALENDAR')) {
-                        console.log('Invalid calendar data');
-                        continue;
-                    }
-                    
-                    const jcalData = ICAL.parse(data);
-                    const comp = new ICAL.Component(jcalData);
-                    const vevents = comp.getAllSubcomponents('vevent');
-                    console.log('Found', vevents.length, 'events');
-                    
-                    const now = getCorrectedDate();
-                    
-                    let events = vevents.map(ve => {
-                        const event = new ICAL.Event(ve);
-                        return { title: event.summary, start: event.startDate.toJSDate() };
-                    })
-                    .filter(e => e.start >= now)
-                    .sort((a, b) => a.start - b.start)
-                    .slice(0, 4);
-
-                    if (events.length === 0) {
-                        document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">No upcoming events</div>';
-                    } else {
-                        document.getElementById('event-list').innerHTML = events.map(e => {
-                            const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
-                            const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
-                            return `
-                                <div class="event-row">
-                                    <div class="event-time">${dateStr}, ${timeStr}</div>
-                                    <div class="event-title">${e.title}</div>
-                                </div>
-                            `;
-                        }).join('');
-                    }
-                    
-                    console.log('✓ Calendar loaded successfully via strategy', i + 1);
-                    return; // Success!
-                    
-                } catch (err) {
-                    console.error('Strategy', i + 1, 'failed:', err.message);
-                }
-            }
-            
-            // All strategies failed
-            console.error('All fetch strategies failed');
-            document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic; color:#999;">Calendar sync failed. Check console for details.</div>';
-        }
-
         setInterval(updateBoard, 1000);
-        setInterval(fetchCalendar, 300000); 
         updateBoard();
-        fetchCalendar();
     </script>
 </body>
 </html>
