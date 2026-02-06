@@ -1,301 +1,303 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>E-ink SVG Route Map (OSM + OSRM, all-SVG)</title>
-  <style>
-    html, body { height:100%; margin:0; background:#fff; }
-    svg { width:100%; height:100%; display:block; background:#fff; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kindle Bus</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff; 
+            --text: #000000; 
+            --gray-bg: #eeeeee;
+        }
 
-    /* e-ink palette */
-    .roadMajor { fill:none; stroke:#888; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
-    .roadMinor { fill:none; stroke:#bbb; stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: "Amazon Ember", "Helvetica", "Arial", sans-serif;
+            margin: 0;
+            padding: 20px;
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
 
-    .routeOutline { fill:none; stroke:#fff; stroke-width:12; stroke-linecap:round; stroke-linejoin:round; }
-    .routeMain    { fill:none; stroke:#000; stroke-width:7;  stroke-linecap:round; stroke-linejoin:round; }
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 8px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+        }
 
-    .stopDot { fill:#fff; stroke:#000; stroke-width:3.5; }
-    .stopDot.start { fill:#000; }
-    .stopDot.mid   { fill:#fff; }
-    .stopDot.end   { fill:#fff; }
+        .route-info h1 {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 2px;
+        }
 
-    .badge {
-      font: 800 18px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      fill:#000;
-      paint-order: stroke;
-      stroke:#fff;
-      stroke-width:6px;
-      stroke-linejoin:round;
-    }
+        .route-number {
+            font-size: 64px;
+            font-weight: 900;
+            margin: -10px 0 0 0;
+            line-height: 1;
+        }
 
-    .msg {
-      font: 700 14px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      fill:#000;
-    }
-  </style>
+        .bus-img {
+            height: 75px;
+            filter: grayscale(1) contrast(5);
+            cursor: pointer;
+            /* No transitions for Kindle E-ink */
+        }
+
+        .bus-flipped {
+            transform: scaleX(-1);
+        }
+
+        .clock-section {
+            text-align: right;
+        }
+
+        #live-clock {
+            font-size: 38px;
+            font-weight: 900;
+            margin: 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* BUS TABLE */
+        .board-headers {
+            display: flex;
+            padding: 12px;
+            background: #000;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            padding: 15px 10px;
+            border-bottom: 3px solid #000;
+            text-align: center;
+        }
+
+        .row.next {
+            background-color: var(--gray-bg);
+            border-bottom: 10px solid #000;
+            padding: 20px 10px;
+        }
+
+        .col-time   { width: 18%; font-size: 32px; font-weight: 800; }
+        .col-from   { width: 22%; font-size: 16px; font-weight: 700; color: #333; }
+        .col-to     { width: 20%; font-size: 18px; font-weight: 800; }
+        .col-due     { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
+        .col-status { width: 15%; font-weight: 800; font-size: 16px; display: flex; justify-content: center; }
+
+        .next-label {
+            border: 4px solid #000;
+            padding: 4px 8px;
+            display: inline-block;
+            line-height: 1;
+        }
+
+        /* CALENDAR SECTION */
+        #calendar-section {
+            margin-top: 20px;
+            flex-grow: 1;
+            border-top: 2px solid #ccc;
+        }
+
+        .cal-header {
+            background: #000;
+            color: #fff;
+            padding: 8px 12px;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .event-row {
+            display: flex;
+            padding: 12px 10px;
+            border-bottom: 2px solid #eee;
+            align-items: center;
+        }
+
+        .event-time { 
+            width: 180px; 
+            font-weight: 800; 
+            font-size: 18px; 
+            text-transform: uppercase;
+            color: #444;
+        }
+        
+        .event-title { 
+            flex-grow: 1; 
+            font-size: 20px; 
+            font-weight: 700; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
 </head>
 <body>
 
-<svg id="svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" aria-label="SVG route map">
-  <!-- Everything is drawn in SVG: roads, route, stops -->
-  <rect x="0" y="0" width="1200" height="800" fill="#fff"></rect>
+    <header class="header">
+        <div class="route-info">
+            <h1>DEPARTURES</h1>
+            <p class="route-number">2A</p>
+        </div>
+        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img" id="bus-toggle" onclick="toggleRoute()">
+        <div class="clock-section">
+            <div style="font-size: 14px; font-weight: 800;">LOCAL TIME</div>
+            <p id="live-clock">00:00:00</p>
+        </div>
+    </header>
 
-  <g id="roads"></g>
+    <div class="board-headers">
+        <div style="width: 18%">Time</div>
+        <div style="width: 22%">From</div>
+        <div style="width: 20%">To</div>
+        <div style="width: 25%">Due In</div>
+        <div style="width: 15%">Status</div>
+    </div>
 
-  <path id="routeOutline" class="routeOutline" d=""></path>
-  <path id="routeMain" class="routeMain" d=""></path>
+    <div id="schedule-container"></div>
 
-  <g id="stops"></g>
+    <div id="calendar-section">
+        <div class="cal-header">Calendar Events</div>
+        <div id="event-list"></div>
+    </div>
 
-  <text id="status" class="msg" x="24" y="34">Loading…</text>
-</svg>
+    <script>
+        let isReturnRoute = false;
 
-<script>
-/* ======================
-   CONFIG (edit if needed)
-====================== */
-const W = 1200, H = 800;
-const PAD = 40; // frame padding inside svg
+        // Departure times from EGHQ 
+        const scheduleEGHQ = ["0:15", "0:35", "0:55", "1:15", "1:35", "1:55", "02:25", "02:55", "03:25", "03:55", "04:20", "04:40", "05:00", "5:25", "5:45", "6:05", "6:25", "6:45", "7:10", "7:35", "8:00", "8:25", "8:50", "9:20", "9:45", "10:10", "10:35", "11:00", "11:25", "11:50", "12:10", "12:30", "12:50", "13:10", "13:30", "13:50", "14:15", "14:40", "15:05", "15:30", "15:55", "16:20", "16:45", "17:10", "17:35", "18:00", "18:25", "18:50", "19:15", "19:40", "20:05", "20:30", "20:55", "21:20", "21:45", "22:10", "22:35", "23:00", "23:25", "23:50"];
+        
+        // Departure times from Grosvenor (third column of document) 
+        const scheduleGrosvenor = ["0:43", "1:03", "1:23", "1:43", "2:03", "2:23", "2:53", "3:23", "3:53", "4:23", "4:48", "5:08", "5:28", "5:53", "6:13", "6:33", "6:53", "7:13", "7:38", "8:03", "8:28", "8:53", "9:18", "9:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
 
-// Stops from your link (A -> B -> C)
-const stops = [
-  { name: "Emirates Group HQ", lat: 25.2417461, lng: 55.3659608, badge: "A", kind: "start" },
-  { name: "Pink Building",    lat: 25.2097705, lng: 55.2731029, badge: "B", kind: "mid"   },
-  { name: "Grosvenor",        lat: 25.2231508, lng: 55.2801991, badge: "C", kind: "end"   }
-];
+        function toggleRoute() {
+            isReturnRoute = !isReturnRoute;
+            const busImg = document.getElementById('bus-toggle');
+            // Instant flip by toggling class without CSS transition
+            busImg.className = isReturnRoute ? 'bus-img bus-flipped' : 'bus-img';
+            updateBoard();
+        }
 
-// OSRM route (open/free)
-const OSRM_PROFILE = "driving"; // driving | walking | cycling
-const OSRM_URL = "https://router.project-osrm.org/route/v1/";
+        function getCorrectedDate() {
+            const date = new Date();
+            date.setHours(date.getHours() + 4);
+            return date;
+        }
 
-// Overpass API for OSM roads (open/free)
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+        function getCountdown(busTimeStr, now) {
+            let [h, m] = busTimeStr.split(':').map(Number);
+            const busDate = new Date(now);
+            busDate.setHours(h, m, 0, 0);
 
-// How much map area to fetch around route (in degrees approx; works fine at Dubai scale)
-const BBOX_PAD_DEG = 0.01;
+            if (busDate < now) {
+                busDate.setDate(busDate.getDate() + 1);
+            }
 
-// Road filters (OSM highway tags)
-const MAJOR = new Set(["motorway","trunk","primary","secondary","tertiary"]);
-const MINOR = new Set(["unclassified","residential","service","living_street","road"]);
+            const diff = busDate - now;
+            if (diff <= 0) return "00:00";
 
-/* ======================
-   SVG helpers
-====================== */
-const svg = document.getElementById("svg");
-const gRoads = document.getElementById("roads");
-const gStops = document.getElementById("stops");
-const statusEl = document.getElementById("status");
-const routeOutline = document.getElementById("routeOutline");
-const routeMain = document.getElementById("routeMain");
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
+        }
 
-function setStatus(t){ statusEl.textContent = t; }
+        function updateBoard() {
+            const now = getCorrectedDate();
+            document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
+            
+            const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                               now.getMinutes().toString().padStart(2, '0');
+            
+            // Toggle Departure and Destination based on click 
+            const activeSchedule = isReturnRoute ? scheduleEGHQ : scheduleGrosvenor;
+            const fromLabel = isReturnRoute ? "EGHQ" : "GROSVENOR";
+            const toLabel = isReturnRoute ? "GROSVENOR" : "EGHQ";
 
-function el(name, attrs = {}) {
-  const n = document.createElementNS("http://www.w3.org/2000/svg", name);
-  for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v);
-  return n;
-}
+            // Normalizing for comparison
+            const normalizedSchedule = activeSchedule.map(t => {
+                let [h, m] = t.split(':');
+                return h.padStart(2, '0') + ":" + m.padStart(2, '0');
+            });
+            const normalizedCurrent = currentStr;
 
-/* ======================
-   Projection (Web Mercator)
-   We map lon/lat -> mercator -> fit to SVG
-====================== */
-function mercX(lng){ return (lng + 180) / 360; }
-function mercY(lat){
-  const rad = lat * Math.PI / 180;
-  const a = Math.log(Math.tan(Math.PI/4 + rad/2));
-  return (1 - a / Math.PI) / 2;
-}
+            let nextIndex = normalizedSchedule.findIndex(t => t > normalizedCurrent);
+            if (nextIndex === -1) nextIndex = 0;
+            
+            let filtered = [];
+            for (let i = 0; i < 3; i++) {
+                filtered.push(activeSchedule[(nextIndex + i) % activeSchedule.length]);
+            }
 
-function boundsFromLatLng(points){
-  let minLat=  90, maxLat= -90, minLng= 180, maxLng=-180;
-  for (const p of points){
-    minLat = Math.min(minLat, p.lat);
-    maxLat = Math.max(maxLat, p.lat);
-    minLng = Math.min(minLng, p.lng);
-    maxLng = Math.max(maxLng, p.lng);
-  }
-  return { minLat, maxLat, minLng, maxLng };
-}
+            document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => `
+                <div class="row ${i === 0 ? 'next' : ''}">
+                    <div class="col-time">${t}</div>
+                    <div class="col-from">${fromLabel}</div>
+                    <div class="col-to">${toLabel}</div>
+                    <div class="col-due">${getCountdown(t, now)}</div>
+                    <div class="col-status">${i === 0 ? '<span class="next-label">NEXT</span>' : 'SCHED'}</div>
+                </div>
+            `).join('');
+        }
 
-function makeProjector(bounds){
-  // Expand bounds
-  const b = {
-    minLat: bounds.minLat - BBOX_PAD_DEG,
-    maxLat: bounds.maxLat + BBOX_PAD_DEG,
-    minLng: bounds.minLng - BBOX_PAD_DEG,
-    maxLng: bounds.maxLng + BBOX_PAD_DEG
-  };
+        async function fetchCalendar() {
+            const icalUrl = 'https://p108-caldav.icloud.com/published/2/MTUxMDYwNTYxNDE1MTA2MOcLt9DeC6aDOBzlZCUDejDdugx2IBT9HDhJA6jGIXwDHsR2_c0JH71EnIqBSkhBPTX-OE44UuANI0LecwDIOcg';
+            const proxy = 'https://corsproxy.io/?' + encodeURIComponent(icalUrl);
+            try {
+                const response = await fetch(proxy);
+                const data = await response.text();
+                const jcalData = ICAL.parse(data);
+                const comp = new ICAL.Component(jcalData);
+                const vevents = comp.getAllSubcomponents('vevent');
+                const now = getCorrectedDate();
+                
+                let events = vevents.map(ve => {
+                    const event = new ICAL.Event(ve);
+                    return { title: event.summary, start: event.startDate.toJSDate() };
+                })
+                .filter(e => e.start >= now)
+                .sort((a, b) => a.start - b.start)
+                .slice(0, 4);
 
-  // Convert to mercator space (note: mercY decreases as lat increases)
-  const x1 = mercX(b.minLng), x2 = mercX(b.maxLng);
-  const y1 = mercY(b.maxLat), y2 = mercY(b.minLat);
+                document.getElementById('event-list').innerHTML = events.map(e => {
+                    const dateStr = e.start.toLocaleDateString('en-GB', {weekday:'short'});
+                    const timeStr = e.start.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false});
+                    return `
+                        <div class="event-row">
+                            <div class="event-time">${dateStr}, ${timeStr}</div>
+                            <div class="event-title">${e.title}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                document.getElementById('event-list').innerHTML = '<div style="padding:20px; font-style:italic;">Syncing Calendar...</div>';
+            }
+        }
 
-  const sx = (W - 2*PAD) / (x2 - x1);
-  const sy = (H - 2*PAD) / (y2 - y1);
-  const s = Math.min(sx, sy);
-
-  // Centering
-  const mapW = (x2 - x1) * s;
-  const mapH = (y2 - y1) * s;
-  const ox = (W - mapW)/2 - x1*s;
-  const oy = (H - mapH)/2 - y1*s;
-
-  return function project(lng, lat){
-    const x = mercX(lng) * s + ox;
-    const y = mercY(lat) * s + oy;
-    return { x, y };
-  };
-}
-
-function pointsToPathD(pts){
-  if (!pts.length) return "";
-  let d = \`M \${pts[0].x.toFixed(1)} \${pts[0].y.toFixed(1)}\`;
-  for (let i=1;i<pts.length;i++){
-    d += \` L \${pts[i].x.toFixed(1)} \${pts[i].y.toFixed(1)}\`;
-  }
-  return d;
-}
-
-/* ======================
-   Fetch route from OSRM (exact geometry)
-====================== */
-async function fetchRoute() {
-  const coords = stops.map(s => \`\${s.lng},\${s.lat}\`).join(";");
-  const url = \`\${OSRM_URL}\${OSRM_PROFILE}/\${coords}?overview=full&geometries=geojson&steps=false\`;
-  const res = await fetch(url, { cache: "no-store" });
-  const data = await res.json();
-  const r = data.routes?.[0];
-  if (!r?.geometry?.coordinates?.length) throw new Error("OSRM: no route");
-  // return as [{lat,lng}, ...]
-  return r.geometry.coordinates.map(([lng,lat]) => ({ lat, lng }));
-}
-
-/* ======================
-   Fetch roads from Overpass in bbox
-====================== */
-async function fetchRoads(bbox){
-  // bbox order for Overpass: (south,west,north,east)
-  const south = bbox.minLat - BBOX_PAD_DEG;
-  const west  = bbox.minLng - BBOX_PAD_DEG;
-  const north = bbox.maxLat + BBOX_PAD_DEG;
-  const east  = bbox.maxLng + BBOX_PAD_DEG;
-
-  const query = \`
-[out:json][timeout:25];
-(
-  way["highway"](\${south},\${west},\${north},\${east});
-);
-out body;
->;
-out skel qt;
-  \`.trim();
-
-  const res = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-    body: "data=" + encodeURIComponent(query)
-  });
-
-  const data = await res.json();
-
-  const nodes = new Map();
-  const ways = [];
-
-  for (const el of data.elements){
-    if (el.type === "node") nodes.set(el.id, { lat: el.lat, lng: el.lon });
-    if (el.type === "way") ways.push(el);
-  }
-
-  // Convert ways to polylines with coords
-  const polylines = [];
-  for (const w of ways){
-    const hw = w.tags?.highway || "";
-    const kind = MAJOR.has(hw) ? "major" : (MINOR.has(hw) ? "minor" : "minor");
-
-    const pts = [];
-    for (const nid of (w.nodes || [])){
-      const n = nodes.get(nid);
-      if (n) pts.push(n);
-    }
-    if (pts.length >= 2) polylines.push({ kind, pts });
-  }
-  return polylines;
-}
-
-/* ======================
-   Render
-====================== */
-function renderRoads(roadPolylines, project){
-  gRoads.innerHTML = "";
-
-  // draw minor first, then major on top
-  const sorted = roadPolylines.slice().sort((a,b) => (a.kind === "major") - (b.kind === "major"));
-  for (const r of sorted){
-    const pts = r.pts.map(p => project(p.lng, p.lat));
-    const d = pointsToPathD(pts);
-    const path = el("path", {
-      d,
-      class: r.kind === "major" ? "roadMajor" : "roadMinor"
-    });
-    gRoads.appendChild(path);
-  }
-}
-
-function renderRoute(routePoints, project){
-  const pts = routePoints.map(p => project(p.lng, p.lat));
-  const d = pointsToPathD(pts);
-  routeOutline.setAttribute("d", d);
-  routeMain.setAttribute("d", d);
-}
-
-function renderStops(project){
-  gStops.innerHTML = "";
-  for (const s of stops){
-    const p = project(s.lng, s.lat);
-
-    const c = el("circle", {
-      cx: p.x, cy: p.y, r: 10,
-      class: \`stopDot \${s.kind}\`
-    });
-    gStops.appendChild(c);
-
-    const t = el("text", {
-      x: p.x + 14,
-      y: p.y + 6,
-      class: "badge"
-    });
-    t.textContent = s.badge;
-    gStops.appendChild(t);
-  }
-}
-
-/* ======================
-   Main
-====================== */
-(async function main(){
-  try{
-    setStatus("Loading route…");
-    const route = await fetchRoute();
-
-    // bounds based on route (better than stops only)
-    const b = boundsFromLatLng(route);
-    const project = makeProjector(b);
-
-    setStatus("Loading roads…");
-    const roads = await fetchRoads(b);
-
-    setStatus("Rendering…");
-    renderRoads(roads, project);
-    renderRoute(route, project);
-    renderStops(project);
-
-    setStatus(""); // hide text
-  } catch (e){
-    setStatus("Failed: " + (e?.message || e));
-  }
-})();
-</script>
+        setInterval(updateBoard, 1000);
+        setInterval(fetchCalendar, 300000); 
+        updateBoard();
+        fetchCalendar();
+    </script>
 </body>
 </html>
