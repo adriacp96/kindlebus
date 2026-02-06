@@ -1,549 +1,301 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kindle Bus</title>
-    <style>
-        :root {
-            --bg: #ffffff; 
-            --text: #000000; 
-            --gray-bg: #eeeeee;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>E-ink SVG Route Map (OSM + OSRM, all-SVG)</title>
+  <style>
+    html, body { height:100%; margin:0; background:#fff; }
+    svg { width:100%; height:100%; display:block; background:#fff; }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: "Amazon Ember", "Helvetica", "Arial", sans-serif;
-            margin: 0;
-            padding: 20px;
-            width: 100vw;
-            height: 100vh;
-            box-sizing: border-box;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+    /* e-ink palette */
+    .roadMajor { fill:none; stroke:#888; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+    .roadMinor { fill:none; stroke:#bbb; stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; }
 
-        /* MAIN CONTENT LAYOUT */
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            flex-grow: 1;
-            overflow: hidden;
-        }
+    .routeOutline { fill:none; stroke:#fff; stroke-width:12; stroke-linecap:round; stroke-linejoin:round; }
+    .routeMain    { fill:none; stroke:#000; stroke-width:7;  stroke-linecap:round; stroke-linejoin:round; }
 
-        .schedule-panel {
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-        }
+    .stopDot { fill:#fff; stroke:#000; stroke-width:3.5; }
+    .stopDot.start { fill:#000; }
+    .stopDot.mid   { fill:#fff; }
+    .stopDot.end   { fill:#fff; }
 
-        .map-panel {
-            flex: 1;
-            border: 3px solid #000;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
+    .badge {
+      font: 800 18px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      fill:#000;
+      paint-order: stroke;
+      stroke:#fff;
+      stroke-width:6px;
+      stroke-linejoin:round;
+    }
 
-        /* HEADER */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            border-bottom: 8px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 10px;
-        }
-
-        .route-info h1 {
-            font-size: 18px;
-            font-weight: 800;
-            margin: 0;
-            letter-spacing: 2px;
-        }
-
-        .route-number {
-            font-size: 64px;
-            font-weight: 900;
-            margin: -10px 0 0 0;
-            line-height: 1;
-        }
-
-        .bus-img {
-            height: 75px;
-            filter: grayscale(1) contrast(5);
-            cursor: pointer;
-            /* No transitions for Kindle E-ink */
-        }
-
-        .bus-flipped {
-            transform: scaleX(-1);
-        }
-
-        .clock-section {
-            text-align: right;
-        }
-
-        #live-clock {
-            font-size: 38px;
-            font-weight: 900;
-            margin: 0;
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* BUS TABLE */
-        .board-headers {
-            display: flex;
-            padding: 12px;
-            background: #000;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: center;
-        }
-
-        .row {
-            display: flex;
-            align-items: center;
-            padding: 15px 10px;
-            border-bottom: 3px solid #000;
-            text-align: center;
-        }
-
-        .row.next {
-            background-color: var(--gray-bg);
-            border-bottom: 10px solid #000;
-            padding: 20px 10px;
-        }
-
-        .col-time   { width: 18%; font-size: 32px; font-weight: 800; }
-        .col-from   { width: 22%; font-size: 16px; font-weight: 700; color: #333; }
-        .col-to     { width: 20%; font-size: 18px; font-weight: 800; }
-        .col-due     { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
-        .col-status { width: 15%; font-weight: 800; font-size: 16px; display: flex; justify-content: center; }
-
-        .next-label {
-            border: 4px solid #000;
-            padding: 4px 8px;
-            display: inline-block;
-            line-height: 1;
-        }
-
-        /* MAP STYLES */
-        #route-map {
-            flex-grow: 1;
-            width: 100%;
-            border: 2px solid #000;
-            background: #fff;
-            min-height: 200px;
-            max-height: 280px;
-        }
-
-        .stop-label {
-            font-size: 10px;
-            font-weight: 700;
-            fill: #000;
-        }
-
-        .stop-marker {
-            font-size: 18px;
-        }
-
-        .street-label {
-            font-size: 8px;
-            font-weight: 600;
-            fill: #555;
-            font-style: italic;
-        }
-
-        .distance-label {
-            font-size: 9px;
-            font-weight: 700;
-            fill: #000;
-        }
-
-        .route-line {
-            stroke: #000;
-            stroke-width: 8;
-            fill: none;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .road-outline {
-            stroke: #666;
-            stroke-width: 12;
-            fill: none;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .water-area {
-            fill: #e8e8e8;
-        }
-
-        .land-area {
-            fill: #fff;
-        }
-
-        .landmark {
-            fill: #ddd;
-            stroke: #666;
-            stroke-width: 1;
-        }
-
-        .stop-circle {
-            fill: #fff;
-            stroke: #000;
-            stroke-width: 3;
-        }
-
-        .msg {
-            font: 700 14px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-            fill: #000;
-        }
-    </style>
+    .msg {
+      font: 700 14px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      fill:#000;
+    }
+  </style>
 </head>
 <body>
 
-    <header class="header">
-        <div class="route-info">
-            <h1>DEPARTURES</h1>
-            <p class="route-number">2A</p>
-        </div>
-        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img" id="bus-toggle" onclick="toggleRoute()">
-        <div class="clock-section">
-            <div style="font-size: 14px; font-weight: 800;">LOCAL TIME</div>
-            <p id="live-clock">00:00:00</p>
-        </div>
-    </header>
+<svg id="svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" aria-label="SVG route map">
+  <!-- Everything is drawn in SVG: roads, route, stops -->
+  <rect x="0" y="0" width="1200" height="800" fill="#fff"></rect>
 
-    <div class="main-content">
-        <div class="schedule-panel">
-            <div class="board-headers">
-                <div style="width: 18%">Time</div>
-                <div style="width: 22%">From</div>
-                <div style="width: 20%">To</div>
-                <div style="width: 25%">Due In</div>
-                <div style="width: 15%">Status</div>
-            </div>
-            <div id="schedule-container"></div>
-        </div>
+  <g id="roads"></g>
 
-        <div class="map-panel">
-            <svg id="route-map" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" style="width:100%; height:100%;">
-                <rect x="0" y="0" width="1200" height="800" fill="#fff"></rect>
-                
-                <g id="roads"></g>
-                
-                <path id="routeOutline" class="routeOutline" d=""></path>
-                <path id="routeMain" class="routeMain" d=""></path>
-                
-                <g id="stops"></g>
-                
-                <text id="status" class="msg" x="24" y="34" style="font: 700 14px/1.25 system-ui; fill:#000;">Loading…</text>
-            </svg>
-        </div>
-    </div>
+  <path id="routeOutline" class="routeOutline" d=""></path>
+  <path id="routeMain" class="routeMain" d=""></path>
 
-    <script>
-        let isReturnRoute = false;
+  <g id="stops"></g>
 
-        // Departure times from EGHQ 
-        const scheduleEGHQ = ["0:15", "0:35", "0:55", "1:15", "1:35", "1:55", "02:25", "02:55", "03:25", "03:55", "04:20", "04:40", "05:00", "5:25", "5:45", "6:05", "6:25", "6:45", "7:10", "7:35", "8:00", "8:25", "8:50", "9:20", "9:45", "10:10", "10:35", "11:00", "11:25", "11:50", "12:10", "12:30", "12:50", "13:10", "13:30", "13:50", "14:15", "14:40", "15:05", "15:30", "15:55", "16:20", "16:45", "17:10", "17:35", "18:00", "18:25", "18:50", "19:15", "19:40", "20:05", "20:30", "20:55", "21:20", "21:45", "22:10", "22:35", "23:00", "23:25", "23:50"];
-        
-        // Departure times from Grosvenor (third column of document) 
-        const scheduleGrosvenor = ["0:43", "1:03", "1:23", "1:43", "2:03", "2:23", "2:53", "3:23", "3:53", "4:23", "4:48", "5:08", "5:28", "5:53", "6:13", "6:33", "6:53", "7:13", "7:38", "8:03", "8:28", "8:53", "9:18", "9:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
+  <text id="status" class="msg" x="24" y="34">Loading…</text>
+</svg>
 
-        function toggleRoute() {
-            isReturnRoute = !isReturnRoute;
-            const busImg = document.getElementById('bus-toggle');
-            busImg.className = isReturnRoute ? 'bus-img bus-flipped' : 'bus-img';
-            updateBoard();
-        }
+<script>
+/* ======================
+   CONFIG (edit if needed)
+====================== */
+const W = 1200, H = 800;
+const PAD = 40; // frame padding inside svg
 
-        function getCorrectedDate() {
-            const date = new Date();
-            date.setHours(date.getHours() + 4);
-            return date;
-        }
+// Stops from your link (A -> B -> C)
+const stops = [
+  { name: "Emirates Group HQ", lat: 25.2417461, lng: 55.3659608, badge: "A", kind: "start" },
+  { name: "Pink Building",    lat: 25.2097705, lng: 55.2731029, badge: "B", kind: "mid"   },
+  { name: "Grosvenor",        lat: 25.2231508, lng: 55.2801991, badge: "C", kind: "end"   }
+];
 
-        function getCountdown(busTimeStr, now) {
-            let [h, m] = busTimeStr.split(':').map(Number);
-            const busDate = new Date(now);
-            busDate.setHours(h, m, 0, 0);
+// OSRM route (open/free)
+const OSRM_PROFILE = "driving"; // driving | walking | cycling
+const OSRM_URL = "https://router.project-osrm.org/route/v1/";
 
-            if (busDate < now) {
-                busDate.setDate(busDate.getDate() + 1);
-            }
+// Overpass API for OSM roads (open/free)
+const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 
-            const diff = busDate - now;
-            if (diff <= 0) return "00:00";
+// How much map area to fetch around route (in degrees approx; works fine at Dubai scale)
+const BBOX_PAD_DEG = 0.01;
 
-            const mins = Math.floor(diff / 60000);
-            const secs = Math.floor((diff % 60000) / 1000);
-            return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
-        }
+// Road filters (OSM highway tags)
+const MAJOR = new Set(["motorway","trunk","primary","secondary","tertiary"]);
+const MINOR = new Set(["unclassified","residential","service","living_street","road"]);
 
-        function updateBoard() {
-            const now = getCorrectedDate();
-            document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
-            
-            const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
-                               now.getMinutes().toString().padStart(2, '0');
-            
-            // Toggle Departure and Destination based on click 
-            const activeSchedule = isReturnRoute ? scheduleEGHQ : scheduleGrosvenor;
-            const fromLabel = isReturnRoute ? "EGHQ" : "GROSVENOR";
-            const toLabel = isReturnRoute ? "GROSVENOR" : "EGHQ";
+/* ======================
+   SVG helpers
+====================== */
+const svg = document.getElementById("svg");
+const gRoads = document.getElementById("roads");
+const gStops = document.getElementById("stops");
+const statusEl = document.getElementById("status");
+const routeOutline = document.getElementById("routeOutline");
+const routeMain = document.getElementById("routeMain");
 
-            // Normalizing for comparison
-            const normalizedSchedule = activeSchedule.map(t => {
-                let [h, m] = t.split(':');
-                return h.padStart(2, '0') + ":" + m.padStart(2, '0');
-            });
-            const normalizedCurrent = currentStr;
+function setStatus(t){ statusEl.textContent = t; }
 
-            let nextIndex = normalizedSchedule.findIndex(t => t > normalizedCurrent);
-            if (nextIndex === -1) nextIndex = 0;
-            
-            let filtered = [];
-            for (let i = 0; i < 3; i++) {
-                filtered.push(activeSchedule[(nextIndex + i) % activeSchedule.length]);
-            }
+function el(name, attrs = {}) {
+  const n = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v);
+  return n;
+}
 
-            document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => `
-                <div class="row ${i === 0 ? 'next' : ''}">
-                    <div class="col-time">${t}</div>
-                    <div class="col-from">${fromLabel}</div>
-                    <div class="col-to">${toLabel}</div>
-                    <div class="col-due">${getCountdown(t, now)}</div>
-                    <div class="col-status">${i === 0 ? '<span class="next-label">NEXT</span>' : 'SCHED'}</div>
-                </div>
-            `).join('');
-        }
+/* ======================
+   Projection (Web Mercator)
+   We map lon/lat -> mercator -> fit to SVG
+====================== */
+function mercX(lng){ return (lng + 180) / 360; }
+function mercY(lat){
+  const rad = lat * Math.PI / 180;
+  const a = Math.log(Math.tan(Math.PI/4 + rad/2));
+  return (1 - a / Math.PI) / 2;
+}
 
-        // ===== OSM MAP CODE =====
-        const W = 1200, H = 800;
-        const PAD = 40;
+function boundsFromLatLng(points){
+  let minLat=  90, maxLat= -90, minLng= 180, maxLng=-180;
+  for (const p of points){
+    minLat = Math.min(minLat, p.lat);
+    maxLat = Math.max(maxLat, p.lat);
+    minLng = Math.min(minLng, p.lng);
+    maxLng = Math.max(maxLng, p.lng);
+  }
+  return { minLat, maxLat, minLng, maxLng };
+}
 
-        // Stops (A -> B -> C)
-        const stops = [
-            { name: "Emirates Group HQ", lat: 25.2417461, lng: 55.3659608, badge: "A", kind: "start" },
-            { name: "Pink Building", lat: 25.2097705, lng: 55.2731029, badge: "B", kind: "mid" },
-            { name: "Grosvenor", lat: 25.2231508, lng: 55.2801991, badge: "C", kind: "end" }
-        ];
+function makeProjector(bounds){
+  // Expand bounds
+  const b = {
+    minLat: bounds.minLat - BBOX_PAD_DEG,
+    maxLat: bounds.maxLat + BBOX_PAD_DEG,
+    minLng: bounds.minLng - BBOX_PAD_DEG,
+    maxLng: bounds.maxLng + BBOX_PAD_DEG
+  };
 
-        // OSRM route (open/free)
-        const OSRM_PROFILE = "driving";
-        const OSRM_URL = "https://router.project-osrm.org/route/v1/";
+  // Convert to mercator space (note: mercY decreases as lat increases)
+  const x1 = mercX(b.minLng), x2 = mercX(b.maxLng);
+  const y1 = mercY(b.maxLat), y2 = mercY(b.minLat);
 
-        // Overpass API for OSM roads (open/free)
-        const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-        const BBOX_PAD_DEG = 0.01;
+  const sx = (W - 2*PAD) / (x2 - x1);
+  const sy = (H - 2*PAD) / (y2 - y1);
+  const s = Math.min(sx, sy);
 
-        // Road filters
-        const MAJOR = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
-        const MINOR = new Set(["unclassified", "residential", "service", "living_street", "road"]);
+  // Centering
+  const mapW = (x2 - x1) * s;
+  const mapH = (y2 - y1) * s;
+  const ox = (W - mapW)/2 - x1*s;
+  const oy = (H - mapH)/2 - y1*s;
 
-        const gRoads = document.getElementById("roads");
-        const gStops = document.getElementById("stops");
-        const statusEl = document.getElementById("status");
-        const routeOutline = document.getElementById("routeOutline");
-        const routeMain = document.getElementById("routeMain");
+  return function project(lng, lat){
+    const x = mercX(lng) * s + ox;
+    const y = mercY(lat) * s + oy;
+    return { x, y };
+  };
+}
 
-        function setStatus(t) { statusEl.textContent = t; }
+function pointsToPathD(pts){
+  if (!pts.length) return "";
+  let d = \`M \${pts[0].x.toFixed(1)} \${pts[0].y.toFixed(1)}\`;
+  for (let i=1;i<pts.length;i++){
+    d += \` L \${pts[i].x.toFixed(1)} \${pts[i].y.toFixed(1)}\`;
+  }
+  return d;
+}
 
-        function el(name, attrs = {}) {
-            const n = document.createElementNS("http://www.w3.org/2000/svg", name);
-            for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
-            return n;
-        }
+/* ======================
+   Fetch route from OSRM (exact geometry)
+====================== */
+async function fetchRoute() {
+  const coords = stops.map(s => \`\${s.lng},\${s.lat}\`).join(";");
+  const url = \`\${OSRM_URL}\${OSRM_PROFILE}/\${coords}?overview=full&geometries=geojson&steps=false\`;
+  const res = await fetch(url, { cache: "no-store" });
+  const data = await res.json();
+  const r = data.routes?.[0];
+  if (!r?.geometry?.coordinates?.length) throw new Error("OSRM: no route");
+  // return as [{lat,lng}, ...]
+  return r.geometry.coordinates.map(([lng,lat]) => ({ lat, lng }));
+}
 
-        // Web Mercator projection
-        function mercX(lng) { return (lng + 180) / 360; }
-        function mercY(lat) {
-            const rad = lat * Math.PI / 180;
-            const a = Math.log(Math.tan(Math.PI / 4 + rad / 2));
-            return (1 - a / Math.PI) / 2;
-        }
+/* ======================
+   Fetch roads from Overpass in bbox
+====================== */
+async function fetchRoads(bbox){
+  // bbox order for Overpass: (south,west,north,east)
+  const south = bbox.minLat - BBOX_PAD_DEG;
+  const west  = bbox.minLng - BBOX_PAD_DEG;
+  const north = bbox.maxLat + BBOX_PAD_DEG;
+  const east  = bbox.maxLng + BBOX_PAD_DEG;
 
-        function boundsFromLatLng(points) {
-            let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-            for (const p of points) {
-                minLat = Math.min(minLat, p.lat);
-                maxLat = Math.max(maxLat, p.lat);
-                minLng = Math.min(minLng, p.lng);
-                maxLng = Math.max(maxLng, p.lng);
-            }
-            return { minLat, maxLat, minLng, maxLng };
-        }
-
-        function makeProjector(bounds) {
-            const b = {
-                minLat: bounds.minLat - BBOX_PAD_DEG,
-                maxLat: bounds.maxLat + BBOX_PAD_DEG,
-                minLng: bounds.minLng - BBOX_PAD_DEG,
-                maxLng: bounds.maxLng + BBOX_PAD_DEG
-            };
-
-            const x1 = mercX(b.minLng), x2 = mercX(b.maxLng);
-            const y1 = mercY(b.maxLat), y2 = mercY(b.minLat);
-
-            const sx = (W - 2 * PAD) / (x2 - x1);
-            const sy = (H - 2 * PAD) / (y2 - y1);
-            const s = Math.min(sx, sy);
-
-            const mapW = (x2 - x1) * s;
-            const mapH = (y2 - y1) * s;
-            const ox = (W - mapW) / 2 - x1 * s;
-            const oy = (H - mapH) / 2 - y1 * s;
-
-            return function project(lng, lat) {
-                const x = mercX(lng) * s + ox;
-                const y = mercY(lat) * s + oy;
-                return { x, y };
-            };
-        }
-
-        function pointsToPathD(pts) {
-            if (!pts.length) return "";
-            let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-            for (let i = 1; i < pts.length; i++) {
-                d += ` L ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
-            }
-            return d;
-        }
-
-        async function fetchRoute() {
-            const coords = stops.map(s => `${s.lng},${s.lat}`).join(";");
-            const url = `${OSRM_URL}${OSRM_PROFILE}/${coords}?overview=full&geometries=geojson&steps=false`;
-            const res = await fetch(url, { cache: "no-store" });
-            const data = await res.json();
-            const r = data.routes?.[0];
-            if (!r?.geometry?.coordinates?.length) throw new Error("OSRM: no route");
-            return r.geometry.coordinates.map(([lng, lat]) => ({ lat, lng }));
-        }
-
-        async function fetchRoads(bbox) {
-            const south = bbox.minLat - BBOX_PAD_DEG;
-            const west = bbox.minLng - BBOX_PAD_DEG;
-            const north = bbox.maxLat + BBOX_PAD_DEG;
-            const east = bbox.maxLng + BBOX_PAD_DEG;
-
-            const query = `
+  const query = \`
 [out:json][timeout:25];
 (
-  way["highway"](${south},${west},${north},${east});
+  way["highway"](\${south},\${west},\${north},\${east});
 );
 out body;
 >;
 out skel qt;
-            `.trim();
+  \`.trim();
 
-            const res = await fetch(OVERPASS_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-                body: "data=" + encodeURIComponent(query)
-            });
+  const res = await fetch(OVERPASS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body: "data=" + encodeURIComponent(query)
+  });
 
-            const data = await res.json();
-            const nodes = new Map();
-            const ways = [];
+  const data = await res.json();
 
-            for (const elem of data.elements) {
-                if (elem.type === "node") nodes.set(elem.id, { lat: elem.lat, lng: elem.lon });
-                if (elem.type === "way") ways.push(elem);
-            }
+  const nodes = new Map();
+  const ways = [];
 
-            const polylines = [];
-            for (const w of ways) {
-                const hw = w.tags?.highway || "";
-                const kind = MAJOR.has(hw) ? "major" : (MINOR.has(hw) ? "minor" : "minor");
+  for (const el of data.elements){
+    if (el.type === "node") nodes.set(el.id, { lat: el.lat, lng: el.lon });
+    if (el.type === "way") ways.push(el);
+  }
 
-                const pts = [];
-                for (const nid of (w.nodes || [])) {
-                    const n = nodes.get(nid);
-                    if (n) pts.push(n);
-                }
-                if (pts.length >= 2) polylines.push({ kind, pts });
-            }
-            return polylines;
-        }
+  // Convert ways to polylines with coords
+  const polylines = [];
+  for (const w of ways){
+    const hw = w.tags?.highway || "";
+    const kind = MAJOR.has(hw) ? "major" : (MINOR.has(hw) ? "minor" : "minor");
 
-        function renderRoads(roadPolylines, project) {
-            gRoads.innerHTML = "";
-            const sorted = roadPolylines.slice().sort((a, b) => (a.kind === "major") - (b.kind === "major"));
-            for (const r of sorted) {
-                const pts = r.pts.map(p => project(p.lng, p.lat));
-                const d = pointsToPathD(pts);
-                const path = el("path", {
-                    d,
-                    class: r.kind === "major" ? "roadMajor" : "roadMinor"
-                });
-                gRoads.appendChild(path);
-            }
-        }
+    const pts = [];
+    for (const nid of (w.nodes || [])){
+      const n = nodes.get(nid);
+      if (n) pts.push(n);
+    }
+    if (pts.length >= 2) polylines.push({ kind, pts });
+  }
+  return polylines;
+}
 
-        function renderRoute(routePoints, project) {
-            const pts = routePoints.map(p => project(p.lng, p.lat));
-            const d = pointsToPathD(pts);
-            routeOutline.setAttribute("d", d);
-            routeMain.setAttribute("d", d);
-        }
+/* ======================
+   Render
+====================== */
+function renderRoads(roadPolylines, project){
+  gRoads.innerHTML = "";
 
-        function renderStops(project) {
-            gStops.innerHTML = "";
-            for (const s of stops) {
-                const p = project(s.lng, s.lat);
+  // draw minor first, then major on top
+  const sorted = roadPolylines.slice().sort((a,b) => (a.kind === "major") - (b.kind === "major"));
+  for (const r of sorted){
+    const pts = r.pts.map(p => project(p.lng, p.lat));
+    const d = pointsToPathD(pts);
+    const path = el("path", {
+      d,
+      class: r.kind === "major" ? "roadMajor" : "roadMinor"
+    });
+    gRoads.appendChild(path);
+  }
+}
 
-                const c = el("circle", {
-                    cx: p.x, cy: p.y, r: 10,
-                    class: `stopDot ${s.kind}`
-                });
-                gStops.appendChild(c);
+function renderRoute(routePoints, project){
+  const pts = routePoints.map(p => project(p.lng, p.lat));
+  const d = pointsToPathD(pts);
+  routeOutline.setAttribute("d", d);
+  routeMain.setAttribute("d", d);
+}
 
-                const t = el("text", {
-                    x: p.x + 14,
-                    y: p.y + 6,
-                    class: "badge"
-                });
-                t.textContent = s.badge;
-                gStops.appendChild(t);
-            }
-        }
+function renderStops(project){
+  gStops.innerHTML = "";
+  for (const s of stops){
+    const p = project(s.lng, s.lat);
 
-        // Main map initialization
-        (async function initializeMap() {
-            try {
-                setStatus("Loading route…");
-                const route = await fetchRoute();
+    const c = el("circle", {
+      cx: p.x, cy: p.y, r: 10,
+      class: \`stopDot \${s.kind}\`
+    });
+    gStops.appendChild(c);
 
-                const b = boundsFromLatLng(route);
-                const project = makeProjector(b);
+    const t = el("text", {
+      x: p.x + 14,
+      y: p.y + 6,
+      class: "badge"
+    });
+    t.textContent = s.badge;
+    gStops.appendChild(t);
+  }
+}
 
-                setStatus("Loading roads…");
-                const roads = await fetchRoads(b);
+/* ======================
+   Main
+====================== */
+(async function main(){
+  try{
+    setStatus("Loading route…");
+    const route = await fetchRoute();
 
-                setStatus("Rendering…");
-                renderRoads(roads, project);
-                renderRoute(route, project);
-                renderStops(project);
+    // bounds based on route (better than stops only)
+    const b = boundsFromLatLng(route);
+    const project = makeProjector(b);
 
-                setStatus("");
-            } catch (e) {
-                setStatus("Failed: " + (e?.message || e));
-            }
-        })();
+    setStatus("Loading roads…");
+    const roads = await fetchRoads(b);
 
-        // Start schedule updates
-        setInterval(updateBoard, 1000);
-        updateBoard();
-    </script>
+    setStatus("Rendering…");
+    renderRoads(roads, project);
+    renderRoute(route, project);
+    renderStops(project);
+
+    setStatus(""); // hide text
+  } catch (e){
+    setStatus("Failed: " + (e?.message || e));
+  }
+})();
+</script>
 </body>
 </html>
