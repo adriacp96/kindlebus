@@ -151,8 +151,8 @@
             width: 100%;
             border: 2px solid #000;
             background: #fff;
-            min-height: 250px;
-            max-height: 350px;
+            min-height: 200px;
+            max-height: 280px;
         }
 
         .stop-label {
@@ -255,14 +255,14 @@
         <div class="map-panel">
             <div class="map-header">
                 <span style="font-size: 16px;">📍</span>
-                <span>DUBAI • Grosvenor → EGHQ • 10.2 KM</span>
+                <span>DUBAI • Grosvenor → EGHQ • 9 KM</span>
             </div>
-            <svg id="route-map" viewBox="0 0 400 550" preserveAspectRatio="xMidYMid meet">
+            <svg id="route-map" viewBox="0 0 700 300" preserveAspectRatio="xMidYMid meet">
                 <!-- Background -->
-                <rect class="land-area" x="0" y="0" width="400" height="550" />
+                <rect class="land-area" x="0" y="0" width="700" height="300" />
                 
-                <!-- Water (Arabian Gulf - left side) -->
-                <path class="water-area" d="M 0 0 L 0 550 L 80 550 Q 90 400, 100 200 Q 105 100, 110 0 Z" />
+                <!-- Water (Arabian Gulf - top side) -->
+                <path class="water-area" d="M 700 0 L 0 0 L 0 60 Q 200 70, 400 75 Q 550 78, 700 80 Z" />
                 
                 <!-- Landmarks -->
                 <g id="landmarks">
@@ -270,10 +270,10 @@
                 </g>
                 
                 <!-- Road outline (gray border) -->
-                <path id="route-outline" class="road-outline" d="M 200 50 L 200 450" />
+                <path id="route-outline" class="road-outline" d="M 50 150 L 650 150" />
                 
                 <!-- Route line (main route) -->
-                <path id="route-path" class="route-line" d="M 200 50 L 200 450" />
+                <path id="route-path" class="route-line" d="M 50 150 L 650 150" />
                 
                 <!-- Street labels -->
                 <g id="street-labels">
@@ -325,7 +325,7 @@
             const toLabel = isReturnRoute ? 'Grosvenor' : 'EGHQ';
             const headerSpan = document.querySelector('.map-header span:last-child');
             if (headerSpan) {
-                headerSpan.innerHTML = `DUBAI • ${fromLabel} → ${toLabel} • 10.2 KM`;
+                headerSpan.innerHTML = `DUBAI • ${fromLabel} → ${toLabel} • 9 KM`;
             }
         }
 
@@ -391,29 +391,29 @@
         }
 
         // ROUTE MAP FUNCTIONALITY
-        // Real Dubai coordinates from Google Maps
+        // Real Dubai coordinates from Google Maps route
         const EGHQ_COORDS = { lat: 25.2417461, lng: 55.3659608 };
-        const GROSVENOR_COORDS = { lat: 25.2070978, lng: 55.264489 };
+        const GROSVENOR_COORDS = { lat: 25.2231508, lng: 55.2801991 }; // Actual Grosvenor location
         
-        // Approximate route: Airport Rd → Al Maktoum Rd → Al Khaleej Rd → Sheikh Zayed Road
+        // Actual route: Airport Rd → Al Khail Rd → Sheikh Zayed Rd → Trade Centre area
         const routeStops = [
             { name: 'EGHQ', position: 0, coords: EGHQ_COORDS, marker: 'A' },
-            { name: 'Airport Terminal 1', position: 0.12, coords: { lat: 25.245, lng: 55.350 }, marker: '' },
-            { name: 'Deira City Centre', position: 0.28, coords: { lat: 25.251, lng: 55.330 }, marker: '' },
-            { name: 'Al Maktoum Bridge', position: 0.45, coords: { lat: 25.245, lng: 55.310 }, marker: '' },
-            { name: 'Burj Khalifa', position: 0.65, coords: { lat: 25.220, lng: 55.280 }, marker: '' },
-            { name: 'Business Bay', position: 0.82, coords: { lat: 25.210, lng: 55.270 }, marker: '' },
+            { name: 'Dubai Festival City', position: 0.18, coords: { lat: 25.234, lng: 55.350 }, marker: '' },
+            { name: 'Healthcare City', position: 0.35, coords: { lat: 25.227, lng: 55.330 }, marker: '' },
+            { name: 'DIFC', position: 0.58, coords: { lat: 25.218, lng: 55.285 }, marker: '' },
+            { name: 'Pink Building', position: 0.75, coords: { lat: 25.2097705, lng: 55.2731029 }, marker: '' },
+            { name: 'Trade Centre', position: 0.88, coords: { lat: 25.220, lng: 55.278 }, marker: '' },
             { name: 'Grosvenor', position: 1.0, coords: GROSVENOR_COORDS, marker: 'B' }
         ];
         
         // Street names for route segments
         const routeStreets = [
-            { segment: 0.06, name: 'Airport Rd' },
-            { segment: 0.38, name: 'Al Maktoum Rd' },
-            { segment: 0.72, name: 'Sheikh Zayed Rd' }
+            { segment: 0.12, name: 'Airport Rd' },
+            { segment: 0.42, name: 'Al Khail Rd' },
+            { segment: 0.75, name: 'Sheikh Zayed Rd' }
         ];
 
-        const JOURNEY_TIME = 28; // minutes (approximate time from start to end)
+        const JOURNEY_TIME = 28; // minutes (approximate time from EGHQ to Grosvenor - ~9km)
 
         function initializeMap() {
             const stopsContainer = document.getElementById('stops');
@@ -425,41 +425,42 @@
             streetLabelsContainer.innerHTML = '';
             landmarksContainer.innerHTML = '';
             
-            const svgWidth = 400;
-            const svgHeight = 550;
+            const svgWidth = 700;
+            const svgHeight = 300;
             const margin = 50;
             
-            // Create realistic Dubai route path
-            // Route goes: East (EGHQ) → curves through Deira → crosses creek → South along SZR → West (Grosvenor)
+            // Create realistic Dubai route path - NOW HORIZONTAL
+            // Actual Google Maps route: Right (EGHQ/Airport) → Southwest along highways → Left (Grosvenor/Trade Center)
             const pathPoints = routeStops.map((stop, i) => {
                 const progress = stop.position;
                 
-                // Create a realistic road curve
+                // Create route following actual roads - FLIPPED (Grosvenor left, EGHQ right)
                 let x, y;
-                if (progress < 0.15) {
-                    // Start - Airport area, moving west
-                    x = 320 - progress * 600;
-                    y = 60 + progress * 100;
-                } else if (progress < 0.35) {
-                    // Deira - curving southwest
-                    const localProgress = (progress - 0.15) / 0.20;
-                    x = 230 - localProgress * 40;
-                    y = 75 + localProgress * 120;
-                } else if (progress < 0.55) {
-                    // Al Maktoum Bridge area - curve west then south
-                    const localProgress = (progress - 0.35) / 0.20;
-                    x = 190 - localProgress * 10;
-                    y = 195 + localProgress * 110;
-                } else if (progress < 0.85) {
-                    // Sheikh Zayed Road - straight south
-                    const localProgress = (progress - 0.55) / 0.30;
-                    x = 180 + localProgress * 20;
-                    y = 305 + localProgress * 130;
+                if (progress < 0.2) {
+                    // EGHQ area - starting from right, moving left slightly curved down
+                    const localProgress = progress / 0.2;
+                    x = 640 - localProgress * 90;
+                    y = 140 + localProgress * 25;
+                } else if (progress < 0.4) {
+                    // Along Al Khail Road - curving southwest
+                    const localProgress = (progress - 0.2) / 0.2;
+                    x = 550 - localProgress * 130;
+                    y = 165 + localProgress * 30;
+                } else if (progress < 0.7) {
+                    // Sheikh Zayed Road section - straighter southwest path
+                    const localProgress = (progress - 0.4) / 0.3;
+                    x = 420 - localProgress * 200;
+                    y = 195 + localProgress * 10;
+                } else if (progress < 0.9) {
+                    // Approaching Trade Centre/DIFC - slight curve
+                    const localProgress = (progress - 0.7) / 0.2;
+                    x = 220 - localProgress * 90;
+                    y = 205 - localProgress * 10;
                 } else {
-                    // Final approach to Grosvenor - southwest
-                    const localProgress = (progress - 0.85) / 0.15;
-                    x = 200 - localProgress * 40;
-                    y = 435 + localProgress * 65;
+                    // Final approach to Grosvenor
+                    const localProgress = (progress - 0.9) / 0.1;
+                    x = 130 - localProgress * 65;
+                    y = 195 - localProgress * 5;
                 }
                 
                 return { x, y, stop };
@@ -474,8 +475,8 @@
                 const prev = pathPoints[i - 1];
                 
                 // Control point for smooth curve
-                const controlX = (prev.x + curr.x) / 2 + (Math.random() - 0.5) * 5;
-                const controlY = (prev.y + curr.y) / 2;
+                const controlX = (prev.x + curr.x) / 2;
+                const controlY = (prev.y + curr.y) / 2 + (Math.random() - 0.5) * 5;
                 
                 const curveCmd = ` Q ${controlX} ${controlY}, ${curr.x} ${curr.y}`;
                 pathD += curveCmd;
@@ -491,9 +492,10 @@
                 if (pathPoints[idx]) {
                     const { x, y } = pathPoints[idx];
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('x', x - 15);
-                    text.setAttribute('y', y - 15);
+                    text.setAttribute('x', x);
+                    text.setAttribute('y', y - 20);
                     text.setAttribute('class', 'street-label');
+                    text.setAttribute('text-anchor', 'middle');
                     text.textContent = street.name;
                     streetLabelsContainer.appendChild(text);
                 }
@@ -501,8 +503,9 @@
             
             // Add landmark boxes
             const landmarks = [
-                { x: 100, y: 280, w: 30, h: 40, name: 'Burj\nKhalifa' },
-                { x: 280, y: 140, w: 40, h: 30, name: 'Deira' }
+                { x: 190, y: 120, w: 45, h: 35, name: 'Trade\nCentre' },
+                { x: 310, y: 110, w: 40, h: 30, name: 'DIFC' },
+                { x: 520, y: 100, w: 45, h: 30, name: 'Festival\nCity' }
             ];
             
             landmarks.forEach(lm => {
@@ -554,13 +557,12 @@
                     stopsContainer.appendChild(circle);
                 }
                 
-                // Stop label
+                // Stop label - adjust position based on location
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                const offsetX = (index < pathPoints.length / 2) ? 15 : -15;
-                const textAnchor = (index < pathPoints.length / 2) ? 'start' : 'end';
-                text.setAttribute('x', x + offsetX);
-                text.setAttribute('y', y + 4);
-                text.setAttribute('text-anchor', textAnchor);
+                const offsetY = (y < 180) ? -10 : 20;
+                text.setAttribute('x', x);
+                text.setAttribute('y', y + offsetY);
+                text.setAttribute('text-anchor', 'middle');
                 text.setAttribute('class', 'stop-label');
                 text.textContent = stop.name;
                 stopsContainer.appendChild(text);

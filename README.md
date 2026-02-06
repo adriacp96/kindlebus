@@ -26,22 +26,22 @@ Then open: http://localhost:8000/index.html
 **Route 2A** connects two key locations in Dubai:
 
 - **EGHQ** (Emirates Group Headquarters): 25.2417°N, 55.3660°E  
-- **Grosvenor**: 25.2071°N, 55.2645°E
+- **Grosvenor** (Trade Centre area): 25.2232°N, 55.2802°E
 
-**Total distance:** ~10.2 km  
+**Total distance:** ~9 km  
 **Journey time:** ~28 minutes
 
-The route follows major Dubai roads:
+The route follows major Dubai highways:
 - **Airport Road** - Starting from EGHQ near Dubai International Airport
-- **Al Maktoum Road** - Through Deira and crossing the creek
-- **Sheikh Zayed Road** - Dubai's main highway heading south
+- **Al Khail Road** - Heading southwest toward the city center
+- **Sheikh Zayed Road** - Dubai's main highway through DIFC and Trade Centre
 
 Passing through key areas:
-- Airport Terminal 1
-- Deira City Centre  
-- Al Maktoum Bridge
-- Burj Khalifa area
-- Business Bay
+- Dubai Festival City
+- Healthcare City  
+- DIFC (Dubai International Financial Centre)
+- Pink Building (Trade Center First)
+- Grosvenor House
 
 ## Project Structure
 
@@ -61,12 +61,12 @@ Passing through key areas:
 
 ### Live Route Map
 The right panel displays a Google Maps-style route showing:
-- **Real GPS coordinates** from Google Maps for accurate positioning
-- **Realistic road layout** following Dubai's actual street network
-- **Major highways** (Airport Rd, Al Maktoum Rd, Sheikh Zayed Rd)
+- **Real GPS coordinates** from actual Google Maps directions
+- **Realistic road layout** following Dubai's highway network (Airport Rd → Al Khail Rd → Sheikh Zayed Rd)
+- **Major highways** clearly labeled along the route
 - **Live bus position** calculated from departure times and journey duration
-- **7 major stops** along the route with clear markers
-- **Landmark indicators** (Burj Khalifa, Deira, Arabian Gulf)
+- **7 major stops** along the ~9km route with clear markers
+- **Landmark indicators** (Trade Centre, DIFC, Festival City)
 - **Status updates** indicating if bus is "En route" or "At station"
 - **E-ink optimized** black and white styling inspired by Google Maps
 
@@ -99,9 +99,9 @@ const routeStops = [
 Edit the `routeStreets` array to show different road names:
 ```javascript
 const routeStreets = [
-    { segment: 0.06, name: 'Airport Rd' },
-    { segment: 0.38, name: 'Al Maktoum Rd' },
-    { segment: 0.72, name: 'Sheikh Zayed Rd' }
+    { segment: 0.12, name: 'Airport Rd' },
+    { segment: 0.42, name: 'Al Khail Rd' },
+    { segment: 0.75, name: 'Sheikh Zayed Rd' }
 ];
 ```
 
