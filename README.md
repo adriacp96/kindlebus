@@ -23,24 +23,28 @@ Then open: http://localhost:8000/index.html
 
 ## Route Information
 
-**Route 2A** connects two key locations in Dubai:
+**Route 2A** follows the actual Google Maps route in Dubai:
 
 - **EGHQ** (Emirates Group Headquarters): 25.2417°N, 55.3660°E  
-- **Grosvenor** (Trade Centre area): 25.2232°N, 55.2802°E
+- **Pink Building** (Trade Center First - waypoint): 25.2098°N, 55.2731°E
+- **Grosvenor** (Final destination): 25.2232°N, 55.2802°E
 
-**Total distance:** ~9 km  
-**Journey time:** ~28 minutes
+**Total distance:** 14.9 km  
+**Journey time:** ~28 minutes  
+**Main highway:** E11 (Sheikh Zayed Road)
 
-The route follows major Dubai highways:
-- **Airport Road** - Starting from EGHQ near Dubai International Airport
-- **Al Khail Road** - Heading southwest toward the city center
-- **Sheikh Zayed Road** - Dubai's main highway through DIFC and Trade Centre
+The route follows:
+- **D89** - From EGHQ/Airport area
+- **E11 (Sheikh Zayed Road)** - Main highway southwest through Dubai
+- **Financial Centre Road** - Final approach to destination
 
-Passing through key areas:
-- Dubai Festival City
-- Healthcare City  
+**Key waypoints:**
+- Airport Exit
+- Al Quoz
+- Business Bay
 - DIFC (Dubai International Financial Centre)
 - Pink Building (Trade Center First)
+- Emirates Towers area
 - Grosvenor House
 
 ## Project Structure
@@ -60,17 +64,17 @@ Passing through key areas:
 - Click the bus icon to flip between routes
 
 ### Live Route Map
-The right panel displays a Google Maps-style route showing:
-- **Real GPS coordinates** from actual Google Maps directions
-- **Realistic road layout** following Dubai's highway network (Airport Rd → Al Khail Rd → Sheikh Zayed Rd)
-- **Major highways** clearly labeled along the route
-- **Live bus position** calculated from departure times and journey duration
-- **7 major stops** along the ~9km route with clear markers
-- **Landmark indicators** (Trade Centre, DIFC, Festival City)
-- **Status updates** indicating if bus is "En route" or "At station"
+The map displays the actual Google Maps route:
+- **Real GPS coordinates** from Google Maps directions API
+- **Exact highway path** following D89 and E11 (Sheikh Zayed Road)
+- **Three-point route** - EGHQ → Pink Building (waypoint) → Grosvenor
+- **Live bus position** calculated from departure times and 28-minute journey
+- **8 major stops** along the 14.9km route with clear markers
+- **Landmark indicators** (Trade Centre, DIFC, Business Bay, Pink Building)
+- **Status updates** showing if bus is "En route" or "At station"
 - **E-ink optimized** black and white styling inspired by Google Maps
 
-The bus icon moves smoothly along the realistic road path in real-time, showing its approximate position between stops.
+The route accurately shows the loop pattern: southwest on E11 to Pink Building, then back northeast to Grosvenor.
 
 ## Kindle Deployment
 
@@ -85,11 +89,13 @@ For deployment to actual Kindle devices:
 
 ### Change Bus Route Stops
 
-Edit the `routeStops` array in index.html (~line 280):
+Edit the `routeStops` array in index.html:
 ```javascript
 const routeStops = [
-    { name: 'EGHQ', position: 0, coords: { lat: 25.2417, lng: 55.3660 }, marker: 'A' },
-    { name: 'Airport Terminal 1', position: 0.12, coords: {...}, marker: '' },
+    { name: 'EGHQ', position: 0, coords: EGHQ_COORDS, marker: 'A' },
+    { name: 'Airport Exit', position: 0.08, coords: {...}, marker: '' },
+    { name: 'Pink Building', position: 0.85, coords: PINK_BUILDING_COORDS, marker: 'Via' },
+    { name: 'Grosvenor', position: 1.0, coords: GROSVENOR_COORDS, marker: 'B' }
     // Add or modify stops...
 ];
 ```
@@ -99,9 +105,9 @@ const routeStops = [
 Edit the `routeStreets` array to show different road names:
 ```javascript
 const routeStreets = [
-    { segment: 0.12, name: 'Airport Rd' },
-    { segment: 0.42, name: 'Al Khail Rd' },
-    { segment: 0.75, name: 'Sheikh Zayed Rd' }
+    { segment: 0.05, name: 'D89' },
+    { segment: 0.50, name: 'E11 - Sheikh Zayed Rd' },
+    { segment: 0.88, name: 'Financial Centre Rd' }
 ];
 ```
 
@@ -110,7 +116,8 @@ const routeStreets = [
 The real coordinates are defined at the top of the map section:
 ```javascript
 const EGHQ_COORDS = { lat: 25.2417461, lng: 55.3659608 };
-const GROSVENOR_COORDS = { lat: 25.2070978, lng: 55.264489 };
+const PINK_BUILDING_COORDS = { lat: 25.2097705, lng: 55.2731029 };
+const GROSVENOR_COORDS = { lat: 25.2231508, lng: 55.2801991 };
 ```
 
 ### Change Bus Schedules
@@ -123,9 +130,9 @@ const scheduleGrosvenor = ["0:43", "1:03", ...];
 
 ### Adjust Journey Time
 
-Change the estimated travel time (in minutes):
+Change the travel time based on actual conditions:
 ```javascript
-const JOURNEY_TIME = 28; // minutes
+const JOURNEY_TIME = 28; // minutes (Google Maps: 14.9 km via E11)
 ```
 
 ### Modify Update Frequency
