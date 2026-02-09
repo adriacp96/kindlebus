@@ -33,6 +33,7 @@
             border-bottom: 8px solid #000;
             padding-bottom: 15px;
             margin-bottom: 10px;
+            flex-shrink: 0;
         }
 
         .route-info h1 {
@@ -81,6 +82,11 @@
             font-weight: 800;
             text-transform: uppercase;
             text-align: center;
+            flex-shrink: 0;
+        }
+
+        #schedule-container {
+            flex-shrink: 0;
         }
 
         .row {
@@ -117,12 +123,15 @@
             border-top: 2px solid #000;
             position: relative;
             overflow: hidden;
+            min-height: 0;
         }
 
         #map-canvas {
             display: block;
             width: 100%;
             height: 100%;
+            image-rendering: crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
         }
     </style>
 </head>
@@ -342,11 +351,19 @@
 
           function resize(){
             var container = document.getElementById('map-section');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            var w = container.offsetWidth || container.clientWidth || window.innerWidth - 40;
+            var h = container.offsetHeight || container.clientHeight || (window.innerHeight / 2);
+            canvas.width = w;
+            canvas.height = h;
+            if (routeLL && cum && C) {
+              setTimeout(draw, 50);
+            }
           }
-          resize();
-          window.addEventListener("resize", resize, false);
+          
+          setTimeout(resize, 100);
+          window.addEventListener("resize", function(){
+            resize();
+          }, false);
 
           // --------- HELPERS ----------
           var TILE = 256;
@@ -464,10 +481,15 @@
               }
               
               var container = document.getElementById('map-section');
+              var w = canvas.width || container.offsetWidth || window.innerWidth - 40;
+              var h = canvas.height || container.offsetHeight || (window.innerHeight / 2);
+              
               for (var z=18; z>=11; z--){
                 var a = ll2px(minLon, maxLat, z);
                 var b = ll2px(maxLon, minLat, z);
-                if (Math.abs(b.x-a.x) < container.clientWidth-80 && Math.abs(b.y-a.y) < container.clientHeight-80){
+                var routeW = Math.abs(b.x-a.x);
+                var routeH = Math.abs(b.y-a.y);
+                if (routeW < w-40 && routeH < h-40){
                   Z = z; break;
                 }
               }
@@ -479,6 +501,9 @@
                 cum[i2] = cum[i2-1] + haversineMeters(routeLL[i2-1], routeLL[i2]);
               }
 
+              // Ensure canvas is properly sized before drawing
+              resize();
+              
               // Start redraw loop (1s)
               setInterval(draw, 1000);
               draw();
