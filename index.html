@@ -114,7 +114,7 @@
         #map-section {
             margin-top: 20px;
             flex-grow: 1;
-            border-top: 8px solid #000;
+            border-top: 2px solid #000;
             position: relative;
             overflow: hidden;
         }
@@ -232,383 +232,382 @@
             `).join('');
         }
 
-        // ====== BUS MAP INITIALIZATION ======
-        (async () => {
-            const ROUTE_W_OUT = 14;
-            const ROUTE_W_IN  = 8;
-            const STOP_R_OUT  = 10;
-            const STOP_R_IN   = 5;
-            const BUS_R_OUT   = 10;
-            const BUS_R_IN    = 4;
+        async function fetchCalendar() {
+            // Calendar functionality removed - map now displayed
+        }
 
-            const TZ_OFFSET_MIN = 4 * 60;
+        // ========== MAP CODE ==========
+        (function initMap(){
+          // --------- E-INK VISIBILITY ----------
+          var ROUTE_W_OUT = 14; // white halo
+          var ROUTE_W_IN  = 8;  // black core
+          var STOP_R_OUT  = 10;
+          var STOP_R_IN   = 5;
+          var BUS_R_OUT   = 10;
+          var BUS_R_IN    = 4;
 
-            const STOPS = [
-                { name:"EGHQ", lon:55.3659608, lat:25.2417461 },
-                { name:"PINK", lon:55.2721115, lat:25.2102779 },
-                { name:"GROS", lon:55.2802068, lat:25.2232332 },
-                { name:"EGHQ", lon:55.3659608, lat:25.2417461 }
-            ];
+          // --------- TIMEZONE (Dubai) ----------
+          var TZ_OFFSET_MIN = 4 * 60;
 
-            const TRIPS = [
-                ["0:15","0:38","0:43","1:03"],
-                ["0:35","0:58","1:03","1:23"],
-                ["0:55","1:18","1:23","1:43"],
-                ["1:15","1:38","1:43","2:03"],
-                ["1:35","1:58","2:03","2:23"],
-                ["1:55","2:18","2:23","2:43"],
-                ["02:25","2:48","2:53","3:13"],
-                ["02:55","3:18","3:23","3:43"],
-                ["03:25","3:48","3:53","4:13"],
-                ["03:55","4:18","4:23","4:43"],
-                ["04:20","4:43","4:48","5:08"],
-                ["04:40","5:03","5:08","5:28"],
-                ["05:00","5:23","5:28","5:48"],
-                ["5:25","5:48","5:53","6:13"],
-                ["5:45","6:08","6:13","6:33"],
-                ["6:05","6:28","6:33","6:53"],
-                ["6:25","6:48","6:53","7:13"],
-                ["6:45","7:08","7:13","7:33"],
-                ["7:10","7:33","7:38","7:58"],
-                ["7:35","7:58","8:03","8:23"],
-                ["8:00","8:23","8:28","8:48"],
-                ["8:25","8:48","8:53","9:13"],
-                ["8:50","9:13","9:18","9:38"],
-                ["9:20","9:43","9:48","10:08"],
-                ["9:45","10:08","10:13","10:33"],
-                ["10:10","10:33","10:38","10:58"],
-                ["10:35","10:58","11:03","11:23"],
-                ["11:00","11:23","11:28","11:48"],
-                ["11:25","11:48","11:53","12:13"],
-                ["11:50","12:13","12:18","12:38"],
-                ["12:10","12:33","12:38","12:58"],
-                ["12:30","12:53","12:58","13:18"],
-                ["12:50","13:13","13:18","13:38"],
-                ["13:10","13:33","13:38","13:58"],
-                ["13:30","13:53","13:58","14:18"],
-                ["13:50","14:13","14:18","14:38"],
-                ["14:15","14:38","14:43","15:03"],
-                ["14:40","15:03","15:08","15:28"],
-                ["15:05","15:28","15:33","15:53"],
-                ["15:30","15:53","15:58","16:18"],
-                ["15:55","16:18","16:23","16:43"],
-                ["16:20","16:43","16:48","17:08"],
-                ["16:45","17:10","17:17","17:39"],
-                ["17:10","17:35","17:42","18:04"],
-                ["17:35","18:00","18:07","18:32"],
-                ["18:00","18:25","18:32","18:57"],
-                ["18:25","18:50","18:57","19:22"],
-                ["18:50","19:15","19:22","19:47"],
-                ["19:15","19:40","19:47","20:12"],
-                ["19:40","20:05","20:12","20:34"],
-                ["20:05","20:30","20:37","20:59"],
-                ["20:30","20:55","21:00","21:20"],
-                ["20:55","21:18","21:23","21:43"],
-                ["21:20","21:43","21:48","22:08"],
-                ["21:45","22:08","22:13","22:33"],
-                ["22:10","22:33","22:38","22:58"],
-                ["22:35","22:58","23:03","23:23"],
-                ["23:00","23:23","23:28","23:48"],
-                ["23:25","23:48","23:53","0:13"],
-                ["23:50","0:13","0:18","0:38"]
-            ];
+          // --------- STOPS ----------
+          var STOPS = [
+            { lon:55.3659608, lat:25.2417461 }, // EGHQ
+            { lon:55.2721115, lat:25.2102779 }, // Pink (back/parking)
+            { lon:55.2802068, lat:25.2232332 }, // Grosvenor (back/parking)
+            { lon:55.3659608, lat:25.2417461 }  // back EGHQ
+          ];
 
-            const tileUrl = (z,x,y) => `https://a.basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`;
+          // --------- EXACT TIMETABLE ROWS (EGHQ, Pink, GROS, EGHQ) ----------
+          var TRIPS = [
+            ["0:15","0:38","0:43","1:03"],
+            ["0:35","0:58","1:03","1:23"],
+            ["0:55","1:18","1:23","1:43"],
+            ["1:15","1:38","1:43","2:03"],
+            ["1:35","1:58","2:03","2:23"],
+            ["1:55","2:18","2:23","2:43"],
+            ["02:25","2:48","2:53","3:13"],
+            ["02:55","3:18","3:23","3:43"],
+            ["03:25","3:48","3:53","4:13"],
+            ["03:55","4:18","4:23","4:43"],
+            ["04:20","4:43","4:48","5:08"],
+            ["04:40","5:03","5:08","5:28"],
+            ["05:00","5:23","5:28","5:48"],
+            ["5:25","5:48","5:53","6:13"],
+            ["5:45","6:08","6:13","6:33"],
+            ["6:05","6:28","6:33","6:53"],
+            ["6:25","6:48","6:53","7:13"],
+            ["6:45","7:08","7:13","7:33"],
+            ["7:10","7:33","7:38","7:58"],
+            ["7:35","7:58","8:03","8:23"],
+            ["8:00","8:23","8:28","8:48"],
+            ["8:25","8:48","8:53","9:13"],
+            ["8:50","9:13","9:18","9:38"],
+            ["9:20","9:43","9:48","10:08"],
+            ["9:45","10:08","10:13","10:33"],
+            ["10:10","10:33","10:38","10:58"],
+            ["10:35","10:58","11:03","11:23"],
+            ["11:00","11:23","11:28","11:48"],
+            ["11:25","11:48","11:53","12:13"],
+            ["11:50","12:13","12:18","12:38"],
+            ["12:10","12:33","12:38","12:58"],
+            ["12:30","12:53","12:58","13:18"],
+            ["12:50","13:13","13:18","13:38"],
+            ["13:10","13:33","13:38","13:58"],
+            ["13:30","13:53","13:58","14:18"],
+            ["13:50","14:13","14:18","14:38"],
+            ["14:15","14:38","14:43","15:03"],
+            ["14:40","15:03","15:08","15:28"],
+            ["15:05","15:28","15:33","15:53"],
+            ["15:30","15:53","15:58","16:18"],
+            ["15:55","16:18","16:23","16:43"],
+            ["16:20","16:43","16:48","17:08"],
+            ["16:45","17:10","17:17","17:39"],
+            ["17:10","17:35","17:42","18:04"],
+            ["17:35","18:00","18:07","18:32"],
+            ["18:00","18:25","18:32","18:57"],
+            ["18:25","18:50","18:57","19:22"],
+            ["18:50","19:15","19:22","19:47"],
+            ["19:15","19:40","19:47","20:12"],
+            ["19:40","20:05","20:12","20:34"],
+            ["20:05","20:30","20:37","20:59"],
+            ["20:30","20:55","21:00","21:20"],
+            ["20:55","21:18","21:23","21:43"],
+            ["21:20","21:43","21:48","22:08"],
+            ["21:45","22:08","22:13","22:33"],
+            ["22:10","22:33","22:38","22:58"],
+            ["22:35","22:58","23:03","23:23"],
+            ["23:00","23:23","23:28","23:48"],
+            ["23:25","23:48","23:53","0:13"],
+            ["23:50","0:13","0:18","0:38"]
+          ];
 
-            const osrmUrl =
-                `https://router.project-osrm.org/route/v1/driving/` +
-                `${STOPS.map(s => `${s.lon},${s.lat}`).join(";")}` +
-                `?overview=full&geometries=geojson&steps=false`;
+          // --------- TILE SOURCE (high contrast, no labels) ----------
+          function tileUrl(z,x,y){
+            return "https://a.basemaps.cartocdn.com/light_nolabels/" + z + "/" + x + "/" + y + ".png";
+          }
 
-            const routeRes = await fetch(osrmUrl, { cache:"no-store" });
-            const routeJson = await routeRes.json();
-            const ROUTE = routeJson.routes?.[0]?.geometry?.coordinates;
-            if (!ROUTE?.length) return;
-            const routeLL = ROUTE.map(([lon,lat]) => ({ lon, lat }));
-
-            const canvas = document.getElementById("map-canvas");
-            const ctx = canvas.getContext("2d", { alpha:false });
-
-            function resize(){
-                const dpr = Math.max(1, devicePixelRatio || 1);
-                const container = document.getElementById('map-section');
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                canvas.width  = Math.floor(w * dpr);
-                canvas.height = Math.floor(h * dpr);
-                canvas.style.width = w + "px";
-                canvas.style.height = h + "px";
-                ctx.setTransform(dpr,0,0,dpr,0,0);
+          // --------- ROUTE SOURCE ----------
+          function osrmUrl(){
+            var s = "";
+            for (var i=0;i<STOPS.length;i++){
+              if (i) s += ";";
+              s += STOPS[i].lon + "," + STOPS[i].lat;
             }
-            resize();
-            addEventListener("resize", () => { resize(); buildBase(); }, { passive:true });
+            return "https://router.project-osrm.org/route/v1/driving/" + s + "?overview=full&geometries=geojson&steps=false";
+          }
 
-            const TILE = 256;
-            function ll2px(lon, lat, z){
-                const scale = TILE * Math.pow(2, z);
-                const x = (lon + 180) / 360 * scale;
-                const sin = Math.sin(lat * Math.PI / 180);
-                const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale;
-                return { x, y };
+          // --------- CANVAS ----------
+          var canvas = document.getElementById("map-canvas");
+          var ctx = canvas.getContext("2d", {alpha:false});
+
+          function resize(){
+            var container = document.getElementById('map-section');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+          }
+          resize();
+          window.addEventListener("resize", resize, false);
+
+          // --------- HELPERS ----------
+          var TILE = 256;
+
+          function ll2px(lon, lat, z){
+            var scale = TILE * Math.pow(2, z);
+            var x = (lon + 180) / 360 * scale;
+            var sin = Math.sin(lat * Math.PI / 180);
+            var y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale;
+            return { x:x, y:y };
+          }
+
+          function haversineMeters(a,b){
+            var R=6371000;
+            function toRad(d){ return d*Math.PI/180; }
+            var dLat = toRad(b.lat-a.lat);
+            var dLon = toRad(b.lon-a.lon);
+            var s1 = Math.sin(dLat/2), s2 = Math.sin(dLon/2);
+            var q = s1*s1 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*s2*s2;
+            return 2*R*Math.asin(Math.min(1, Math.sqrt(q)));
+          }
+
+          function parseHHMM(s){
+            var parts = s.split(":");
+            return parseInt(parts[0],10)*60 + parseInt(parts[1],10);
+          }
+
+          function normalizeTrip(row){
+            var t = [parseHHMM(row[0]), parseHHMM(row[1]), parseHHMM(row[2]), parseHHMM(row[3])];
+            for (var i=1;i<4;i++){
+              while (t[i] < t[i-1]) t[i] += 1440;
             }
+            return t;
+          }
 
-            let minLon=Infinity, maxLon=-Infinity, minLat=Infinity, maxLat=-Infinity;
-            for (const p of routeLL){
-                minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon);
-                minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
-            }
+          var TRIP_ABS = [];
+          for (var i=0;i<TRIPS.length;i++) TRIP_ABS.push(normalizeTrip(TRIPS[i]));
 
-            function pickZoom(){
-                const container = document.getElementById('map-section');
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                for (let z=18; z>=11; z--){
-                    const a = ll2px(minLon, maxLat, z);
-                    const b = ll2px(maxLon, minLat, z);
-                    if (Math.abs(b.x-a.x) < w-80 && Math.abs(b.y-a.y) < h-80) return z;
+          function nowLocalMinutesFloat(){
+            var d = new Date();
+            var utc = d.getUTCHours()*60 + d.getUTCMinutes() + d.getUTCSeconds()/60;
+            var m = utc + TZ_OFFSET_MIN;
+            m = ((m % 1440) + 1440) % 1440;
+            return m;
+          }
+
+          function activeBuses(nowMin){
+            var buses = [];
+            for (var i=0;i<TRIP_ABS.length;i++){
+              var t = TRIP_ABS[i];
+              for (var si=0; si<2; si++){
+                var shift = (si===0) ? 0 : -1440;
+                var t0=t[0]+shift, t1=t[1]+shift, t2=t[2]+shift, t3=t[3]+shift;
+
+                var nowA = nowMin;
+                var nowB = nowMin - 1440;
+
+                if ((nowA>=t0 && nowA<t3) || (nowB>=t0 && nowB<t3)){
+                  var useNow = (nowA>=t0 && nowA<t3) ? nowA : nowB;
+                  buses.push({ i:i, now:useNow, t0:t0, t1:t1, t2:t2, t3:t3 });
+                  break;
                 }
-                return 12;
+              }
             }
-            let Z = pickZoom();
-            let C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
+            return buses;
+          }
 
-            const tileCache = new Map();
-            function getTile(z,x,y){
-                const k = `${z}/${x}/${y}`;
-                if (tileCache.has(k)) return tileCache.get(k);
-                const img = new Image();
-                img.crossOrigin = "anonymous";
-                img.src = tileUrl(z,x,y);
-                tileCache.set(k, img);
-                return img;
-            }
+          // --------- GLOBAL DRAW STATE ----------
+          var routeLL = null;
+          var cum = null;
+          var Z = 12;
+          var C = null;
 
-            function haversineMeters(a, b){
-                const R = 6371000, toRad = d => d*Math.PI/180;
-                const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lon-a.lon);
-                const s1 = Math.sin(dLat/2), s2 = Math.sin(dLon/2);
-                const q = s1*s1 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*s2*s2;
-                return 2*R*Math.asin(Math.min(1, Math.sqrt(q)));
-            }
-            const cum = [0];
-            for (let i=1;i<routeLL.length;i++){
-                cum[i] = cum[i-1] + haversineMeters(routeLL[i-1], routeLL[i]);
-            }
+          // --------- TILE CACHE ----------
+          var tileCache = {};
+          function getTile(z,x,y){
+            var k = z + "/" + x + "/" + y;
+            if (tileCache[k]) return tileCache[k];
+            var img = new Image();
+            img.src = tileUrl(z,x,y);
+            tileCache[k] = img;
+            return img;
+          }
 
-            function closestIndex(stop){
-                let bestI=0, best=Infinity;
-                for (let i=0;i<routeLL.length;i++){
-                    const d = haversineMeters(stop, routeLL[i]);
-                    if (d < best){ best = d; bestI = i; }
+          // --------- OSRM LOAD (XHR, kindle-friendly) ----------
+          function xhrJson(url, cb){
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", url, true);
+            xhr.onreadystatechange = function(){
+              if (xhr.readyState === 4){
+                try { cb(JSON.parse(xhr.responseText)); } catch(e){ cb(null); }
+              }
+            };
+            xhr.send(null);
+          }
+
+          function buildRouteAndStart(){
+            xhrJson(osrmUrl(), function(j){
+              if (!j || !j.routes || !j.routes[0] || !j.routes[0].geometry) return;
+              var coords = j.routes[0].geometry.coordinates;
+
+              routeLL = [];
+              for (var i=0;i<coords.length;i++){
+                routeLL.push({ lon: coords[i][0], lat: coords[i][1] });
+              }
+
+              // bounds & zoom
+              var minLon=1e9,maxLon=-1e9,minLat=1e9,maxLat=-1e9;
+              for (var k=0;k<routeLL.length;k++){
+                var p=routeLL[k];
+                if (p.lon<minLon) minLon=p.lon;
+                if (p.lon>maxLon) maxLon=p.lon;
+                if (p.lat<minLat) minLat=p.lat;
+                if (p.lat>maxLat) maxLat=p.lat;
+              }
+              
+              var container = document.getElementById('map-section');
+              for (var z=18; z>=11; z--){
+                var a = ll2px(minLon, maxLat, z);
+                var b = ll2px(maxLon, minLat, z);
+                if (Math.abs(b.x-a.x) < container.clientWidth-80 && Math.abs(b.y-a.y) < container.clientHeight-80){
+                  Z = z; break;
                 }
-                return bestI;
+              }
+              C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
+
+              // cumulative distance
+              cum = [0];
+              for (var i2=1;i2<routeLL.length;i2++){
+                cum[i2] = cum[i2-1] + haversineMeters(routeLL[i2-1], routeLL[i2]);
+              }
+
+              // Start redraw loop (1s)
+              setInterval(draw, 1000);
+              draw();
+            });
+          }
+
+          function pointAtDistance(d){
+            var total = cum[cum.length-1];
+            if (d<0) d=0;
+            if (d>total) d=total;
+
+            var lo=1, hi=cum.length-1;
+            while (lo<hi){
+              var mid = (lo+hi)>>1;
+              if (cum[mid] < d) lo = mid+1; else hi = mid;
             }
+            var i = lo;
+            var d0=cum[i-1], d1=cum[i];
+            var t = (d1===d0) ? 0 : (d-d0)/(d1-d0);
+            var a=routeLL[i-1], b=routeLL[i];
+            return { lon: a.lon + (b.lon-a.lon)*t, lat: a.lat + (b.lat-a.lat)*t };
+          }
 
-            const idx = [
-                closestIndex(STOPS[0]),
-                closestIndex(STOPS[1]),
-                closestIndex(STOPS[2]),
-                closestIndex(STOPS[3])
-            ];
-            const monotonic = idx[0] <= idx[1] && idx[1] <= idx[2] && idx[2] <= idx[3];
-            const stopDist = monotonic ? [cum[idx[0]], cum[idx[1]], cum[idx[2]], cum[idx[3]]] : null;
+          function busDistanceExact(bus){
+            var now = bus.now, t0=bus.t0, t1=bus.t1, t2=bus.t2, t3=bus.t3;
+            var total = cum[cum.length-1];
 
-            function pointAtDistance(targetMeters){
-                const total = cum[cum.length-1];
-                targetMeters = Math.max(0, Math.min(total, targetMeters));
-                let lo=0, hi=cum.length-1;
-                while (lo<hi){
-                    const mid=(lo+hi)>>1;
-                    if (cum[mid] < targetMeters) lo=mid+1; else hi=mid;
+            var dt = (t3 - t0) || 1;
+            var f1 = (t1 - t0) / dt;
+            var f2 = (t2 - t0) / dt;
+
+            var d0 = 0;
+            var d1 = total * f1;
+            var d2 = total * f2;
+            var d3 = total;
+
+            if (now <= t0) return d0;
+            if (now <  t1){
+              return d0 + (d1-d0) * ((now-t0)/((t1-t0)||1));
+            }
+            if (now <  t2){
+              return d1 + (d2-d1) * ((now-t1)/((t2-t1)||1));
+            }
+            if (now <  t3){
+              return d2 + (d3-d2) * ((now-t2)/((t3-t2)||1));
+            }
+            return d3;
+          }
+
+          function draw(){
+            if (!routeLL || !cum || !C) return;
+
+            var w = canvas.width, h = canvas.height;
+            ctx.fillStyle="#fff";
+            ctx.fillRect(0,0,w,h);
+
+            var TL = { x: C.x - w/2, y: C.y - h/2 };
+            var maxT = Math.pow(2, Z) - 1;
+
+            // tiles
+            for (var ty=Math.floor(TL.y/TILE); ty<=Math.floor((TL.y+h)/TILE); ty++){
+              if (ty<0 || ty>maxT) continue;
+              for (var tx=Math.floor(TL.x/TILE); tx<=Math.floor((TL.x+w)/TILE); tx++){
+                var x = tx % (maxT+1); if (x<0) x += (maxT+1);
+                var img = getTile(Z, x, ty);
+                if (img.complete){
+                  ctx.drawImage(img, tx*TILE - TL.x, ty*TILE - TL.y, TILE, TILE);
                 }
-                const i = Math.max(1, lo);
-                const d0=cum[i-1], d1=cum[i];
-                const t = (d1===d0) ? 0 : (targetMeters-d0)/(d1-d0);
-                const a=routeLL[i-1], b=routeLL[i];
-                return { lon:a.lon+(b.lon-a.lon)*t, lat:a.lat+(b.lat-a.lat)*t };
+              }
             }
 
-            function parseHHMM(s){
-                const [h,m] = s.split(":").map(Number);
-                return h*60 + m;
+            // route halo
+            ctx.lineJoin="round"; ctx.lineCap="round";
+            ctx.strokeStyle="#fff"; ctx.lineWidth=ROUTE_W_OUT;
+            ctx.beginPath();
+            for (var i=0;i<routeLL.length;i++){
+              var p = ll2px(routeLL[i].lon, routeLL[i].lat, Z);
+              var x2 = p.x - TL.x, y2 = p.y - TL.y;
+              if (!i) ctx.moveTo(x2,y2); else ctx.lineTo(x2,y2);
             }
-            function normalizeTrip(row){
-                const t = row.map(parseHHMM);
-                for (let i=1;i<t.length;i++){
-                    while (t[i] < t[i-1]) t[i] += 1440;
-                }
-                return t;
-            }
-            const TRIP_ABS = TRIPS.map(normalizeTrip);
+            ctx.stroke();
 
-            function nowLocalMinutesFloat(){
-                const d = new Date();
-                const utc = d.getUTCHours()*60 + d.getUTCMinutes() + d.getUTCSeconds()/60 + d.getUTCMilliseconds()/60000;
-                let m = utc + TZ_OFFSET_MIN;
-                m = ((m % 1440) + 1440) % 1440;
-                return m;
-            }
+            // route core
+            ctx.strokeStyle="#000"; ctx.lineWidth=ROUTE_W_IN;
+            ctx.stroke();
 
-            function activeBuses(nowMin){
-                const buses = [];
-                for (let i=0;i<TRIP_ABS.length;i++){
-                    const t = TRIP_ABS[i];
-                    for (const shift of [0, -1440]){
-                        const t0=t[0]+shift, t1=t[1]+shift, t2=t[2]+shift, t3=t[3]+shift;
-                        for (const nowShift of [nowMin, nowMin-1440]){
-                            if (nowShift >= t0 && nowShift < t3){
-                                buses.push({ i, now: nowShift, t0, t1, t2, t3 });
-                            }
-                        }
-                    }
-                }
-                const best = new Map();
-                for (const b of buses){
-                    if (!best.has(b.i) || b.t0 > best.get(b.i).t0) best.set(b.i, b);
-                }
-                return [...best.values()];
+            // stop markers (3 unique)
+            for (var si=0; si<3; si++){
+              var sp = ll2px(STOPS[si].lon, STOPS[si].lat, Z);
+              var sx = sp.x - TL.x, sy = sp.y - TL.y;
+
+              ctx.fillStyle="#fff"; ctx.strokeStyle="#000"; ctx.lineWidth=4;
+              ctx.beginPath(); ctx.arc(sx,sy,STOP_R_OUT,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+              ctx.fillStyle="#000";
+              ctx.beginPath(); ctx.arc(sx,sy,STOP_R_IN,0,Math.PI*2); ctx.fill();
             }
 
-            function busDistanceFor(bus){
-                const { now, t0, t1, t2, t3 } = bus;
+            // buses
+            var now = nowLocalMinutesFloat();
+            var buses = activeBuses(now);
 
-                if (stopDist){
-                    if (now <= t0) return stopDist[0];
-                    if (now <  t1){
-                        const f = (now - t0) / (t1 - t0 || 1);
-                        return stopDist[0] + f * (stopDist[1] - stopDist[0]);
-                    }
-                    if (now <  t2){
-                        const f = (now - t1) / (t2 - t1 || 1);
-                        return stopDist[1] + f * (stopDist[2] - stopDist[1]);
-                    }
-                    if (now <  t3){
-                        const f = (now - t2) / (t3 - t2 || 1);
-                        return stopDist[2] + f * (stopDist[3] - stopDist[2]);
-                    }
-                    return stopDist[3];
-                }
+            // Draw all buses active now
+            for (var bi=0; bi<buses.length; bi++){
+              var b = buses[bi];
+              var dist = busDistanceExact(b);
+              var pos = pointAtDistance(dist);
+              var bp = ll2px(pos.lon, pos.lat, Z);
 
-                const total = cum[cum.length-1];
-                const dt = (t3 - t0) || 1;
-                const f = Math.max(0, Math.min(1, (now - t0) / dt));
-                return total * f;
+              var bx = bp.x - TL.x;
+              var by = bp.y - TL.y;
+
+              // tiny offset per bus to reduce overlap
+              var ang = (b.i * 137.5) * Math.PI / 180;
+              bx += Math.cos(ang) * 2.5;
+              by += Math.sin(ang) * 2.5;
+
+              ctx.fillStyle="#fff";
+              ctx.beginPath(); ctx.arc(bx,by,BUS_R_OUT,0,Math.PI*2); ctx.fill();
+
+              ctx.fillStyle="#000";
+              ctx.beginPath(); ctx.arc(bx,by,BUS_R_OUT-2,0,Math.PI*2); ctx.fill();
+
+              ctx.fillStyle="#fff";
+              ctx.beginPath(); ctx.arc(bx,by,BUS_R_IN,0,Math.PI*2); ctx.fill();
             }
+          }
 
-            const base = document.createElement("canvas");
-            const bctx = base.getContext("2d", { alpha:false });
-
-            function syncBase(){
-                const dpr = Math.max(1, devicePixelRatio || 1);
-                const container = document.getElementById('map-section');
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                base.width  = Math.floor(w * dpr);
-                base.height = Math.floor(h * dpr);
-                bctx.setTransform(dpr,0,0,dpr,0,0);
-            }
-
-            function buildBase(){
-                Z = pickZoom();
-                C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
-                syncBase();
-
-                const container = document.getElementById('map-section');
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                const TL = { x: C.x - w/2, y: C.y - h/2 };
-                const maxT = Math.pow(2, Z) - 1;
-
-                bctx.fillStyle="#fff";
-                bctx.fillRect(0,0,w,h);
-
-                for (let ty=Math.floor(TL.y/TILE); ty<=Math.floor((TL.y+h)/TILE); ty++){
-                    if (ty<0 || ty>maxT) continue;
-                    for (let tx=Math.floor(TL.x/TILE); tx<=Math.floor((TL.x+w)/TILE); tx++){
-                        let x = tx % (maxT+1); if (x<0) x += (maxT+1);
-                        const img = getTile(Z, x, ty);
-                        if (img.complete){
-                            bctx.drawImage(img, x*TILE - TL.x, ty*TILE - TL.y, TILE, TILE);
-                        }
-                    }
-                }
-
-                bctx.lineJoin="round";
-                bctx.lineCap="round";
-
-                bctx.strokeStyle="#fff";
-                bctx.lineWidth=ROUTE_W_OUT;
-                bctx.beginPath();
-                for (let i=0;i<routeLL.length;i++){
-                    const p = ll2px(routeLL[i].lon, routeLL[i].lat, Z);
-                    const x = p.x - TL.x, y = p.y - TL.y;
-                    if (!i) bctx.moveTo(x,y); else bctx.lineTo(x,y);
-                }
-                bctx.stroke();
-
-                bctx.strokeStyle="#000";
-                bctx.lineWidth=ROUTE_W_IN;
-                bctx.stroke();
-
-                for (const s of [STOPS[0], STOPS[1], STOPS[2]]){
-                    const p = ll2px(s.lon, s.lat, Z);
-                    const x = p.x - TL.x, y = p.y - TL.y;
-
-                    bctx.fillStyle="#fff";
-                    bctx.strokeStyle="#000";
-                    bctx.lineWidth=4;
-                    bctx.beginPath();
-                    bctx.arc(x,y,STOP_R_OUT,0,Math.PI*2);
-                    bctx.fill(); bctx.stroke();
-
-                    bctx.fillStyle="#000";
-                    bctx.beginPath();
-                    bctx.arc(x,y,STOP_R_IN,0,Math.PI*2);
-                    bctx.fill();
-                }
-            }
-
-            buildBase();
-            setTimeout(buildBase, 700);
-            setTimeout(buildBase, 1400);
-
-            function frame(){
-                const container = document.getElementById('map-section');
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                ctx.drawImage(base, 0, 0, w, h);
-
-                const TL = { x: C.x - w/2, y: C.y - h/2 };
-                const now = nowLocalMinutesFloat();
-                const buses = activeBuses(now);
-
-                const spread = 7;
-                for (const b of buses){
-                    const dist = busDistanceFor(b);
-                    const pos = pointAtDistance(dist);
-                    const p = ll2px(pos.lon, pos.lat, Z);
-
-                    let x = p.x - TL.x;
-                    let y = p.y - TL.y;
-
-                    const ang = (b.i * 137.5) * Math.PI/180;
-                    x += Math.cos(ang) * spread * 0.35;
-                    y += Math.sin(ang) * spread * 0.35;
-
-                    ctx.fillStyle="#fff";
-                    ctx.beginPath(); ctx.arc(x,y,BUS_R_OUT,0,Math.PI*2); ctx.fill();
-
-                    ctx.fillStyle="#000";
-                    ctx.beginPath(); ctx.arc(x,y,BUS_R_OUT-2,0,Math.PI*2); ctx.fill();
-
-                    ctx.fillStyle="#fff";
-                    ctx.beginPath(); ctx.arc(x,y,BUS_R_IN,0,Math.PI*2); ctx.fill();
-                }
-
-                requestAnimationFrame(frame);
-            }
-
-            frame();
+          buildRouteAndStart();
         })();
 
         setInterval(updateBoard, 1000);
