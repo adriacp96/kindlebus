@@ -1,406 +1,618 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Multi Bus Live (Exact Timetable)</title>
-<style>
-  html,body{margin:0;height:100%;background:#fff;overflow:hidden}
-  canvas{display:block;width:100vw;height:100vh}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kindle Bus</title>
+    <style>
+        :root {
+            --bg: #ffffff; 
+            --text: #000000; 
+            --gray-bg: #eeeeee;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: "Amazon Ember", "Helvetica", "Arial", sans-serif;
+            margin: 0;
+            padding: 20px;
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 8px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+        }
+
+        .route-info h1 {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 2px;
+        }
+
+        .route-number {
+            font-size: 64px;
+            font-weight: 900;
+            margin: -10px 0 0 0;
+            line-height: 1;
+        }
+
+        .bus-img {
+            height: 75px;
+            filter: grayscale(1) contrast(5);
+            cursor: pointer;
+            /* No transitions for Kindle E-ink */
+        }
+
+        .bus-flipped {
+            transform: scaleX(-1);
+        }
+
+        .clock-section {
+            text-align: right;
+        }
+
+        #live-clock {
+            font-size: 38px;
+            font-weight: 900;
+            margin: 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* BUS TABLE */
+        .board-headers {
+            display: flex;
+            padding: 12px;
+            background: #000;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            padding: 15px 10px;
+            border-bottom: 3px solid #000;
+            text-align: center;
+        }
+
+        .row.next {
+            background-color: var(--gray-bg);
+            border-bottom: 10px solid #000;
+            padding: 20px 10px;
+        }
+
+        .col-time   { width: 18%; font-size: 32px; font-weight: 800; }
+        .col-from   { width: 22%; font-size: 16px; font-weight: 700; color: #333; }
+        .col-to     { width: 20%; font-size: 18px; font-weight: 800; }
+        .col-due     { width: 25%; font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
+        .col-status { width: 15%; font-weight: 800; font-size: 16px; display: flex; justify-content: center; }
+
+        .next-label {
+            border: 4px solid #000;
+            padding: 4px 8px;
+            display: inline-block;
+            line-height: 1;
+        }
+
+        /* MAP SECTION */
+        #map-section {
+            margin-top: 20px;
+            flex-grow: 1;
+            border-top: 8px solid #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
-<canvas id="c"></canvas>
 
-<script>
-(async () => {
-  // ====== KINDLE / E-INK VISIBILITY ======
-  const ROUTE_W_OUT = 14; // white halo
-  const ROUTE_W_IN  = 8;  // black core
-  const STOP_R_OUT  = 10;
-  const STOP_R_IN   = 5;
-  const BUS_R_OUT   = 10;
-  const BUS_R_IN    = 4;
+    <header class="header">
+        <div class="route-info">
+            <h1>DEPARTURES</h1>
+            <p class="route-number">2A</p>
+        </div>
+        <img src="https://i.imghippo.com/files/AIFK9369Te.png" alt="Bus" class="bus-img" id="bus-toggle" onclick="toggleRoute()">
+        <div class="clock-section">
+            <div style="font-size: 14px; font-weight: 800;">LOCAL TIME</div>
+            <p id="live-clock">00:00:00</p>
+        </div>
+    </header>
 
-  // Dubai timezone (+04:00)
-  const TZ_OFFSET_MIN = 4 * 60;
+    <div class="board-headers">
+        <div style="width: 18%">Time</div>
+        <div style="width: 22%">From</div>
+        <div style="width: 20%">To</div>
+        <div style="width: 25%">Due In</div>
+        <div style="width: 15%">Status</div>
+    </div>
 
-  // Stops: EGHQ -> Pink -> GROS -> EGHQ
-  const STOPS = [
-    { name:"EGHQ", lon:55.3659608, lat:25.2417461 },
-    { name:"PINK", lon:55.2721115, lat:25.2102779 }, // back/parking
-    { name:"GROS", lon:55.2802068, lat:25.2232332 }, // back/parking
-    { name:"EGHQ", lon:55.3659608, lat:25.2417461 }
-  ];
+    <div id="schedule-container"></div>
 
-  // EXACT timetable rows (EGHQ, Pink, GROS, EGHQ) from your PDF.
-  // Each row is one bus trip.
-  const TRIPS = [
-    ["0:15","0:38","0:43","1:03"],
-    ["0:35","0:58","1:03","1:23"],
-    ["0:55","1:18","1:23","1:43"],
-    ["1:15","1:38","1:43","2:03"],
-    ["1:35","1:58","2:03","2:23"],
-    ["1:55","2:18","2:23","2:43"],
-    ["02:25","2:48","2:53","3:13"],
-    ["02:55","3:18","3:23","3:43"],
-    ["03:25","3:48","3:53","4:13"],
-    ["03:55","4:18","4:23","4:43"],
-    ["04:20","4:43","4:48","5:08"],
-    ["04:40","5:03","5:08","5:28"],
-    ["05:00","5:23","5:28","5:48"],
-    ["5:25","5:48","5:53","6:13"],
-    ["5:45","6:08","6:13","6:33"],
-    ["6:05","6:28","6:33","6:53"],
-    ["6:25","6:48","6:53","7:13"],
-    ["6:45","7:08","7:13","7:33"],
-    ["7:10","7:33","7:38","7:58"],
-    ["7:35","7:58","8:03","8:23"],
-    ["8:00","8:23","8:28","8:48"],
-    ["8:25","8:48","8:53","9:13"],
-    ["8:50","9:13","9:18","9:38"],
-    ["9:20","9:43","9:48","10:08"],
-    ["9:45","10:08","10:13","10:33"],
-    ["10:10","10:33","10:38","10:58"],
-    ["10:35","10:58","11:03","11:23"],
-    ["11:00","11:23","11:28","11:48"],
-    ["11:25","11:48","11:53","12:13"],
-    ["11:50","12:13","12:18","12:38"],
-    ["12:10","12:33","12:38","12:58"],
-    ["12:30","12:53","12:58","13:18"],
-    ["12:50","13:13","13:18","13:38"],
-    ["13:10","13:33","13:38","13:58"],
-    ["13:30","13:53","13:58","14:18"],
-    ["13:50","14:13","14:18","14:38"],
-    ["14:15","14:38","14:43","15:03"],
-    ["14:40","15:03","15:08","15:28"],
-    ["15:05","15:28","15:33","15:53"],
-    ["15:30","15:53","15:58","16:18"],
-    ["15:55","16:18","16:23","16:43"],
-    ["16:20","16:43","16:48","17:08"],
-    ["16:45","17:10","17:17","17:39"],
-    ["17:10","17:35","17:42","18:04"],
-    ["17:35","18:00","18:07","18:32"],
-    ["18:00","18:25","18:32","18:57"],
-    ["18:25","18:50","18:57","19:22"],
-    ["18:50","19:15","19:22","19:47"],
-    ["19:15","19:40","19:47","20:12"],
-    ["19:40","20:05","20:12","20:34"],
-    ["20:05","20:30","20:37","20:59"],
-    ["20:30","20:55","21:00","21:20"],
-    ["20:55","21:18","21:23","21:43"],
-    ["21:20","21:43","21:48","22:08"],
-    ["21:45","22:08","22:13","22:33"],
-    ["22:10","22:33","22:38","22:58"],
-    ["22:35","22:58","23:03","23:23"],
-    ["23:00","23:23","23:28","23:48"],
-    ["23:25","23:48","23:53","0:13"],
-    ["23:50","0:13","0:18","0:38"]
-  ];
+    <div id="map-section">
+        <canvas id="map-canvas"></canvas>
+    </div>
 
-  // High-contrast base map (no labels)
-  const tileUrl = (z,x,y) => `https://a.basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`;
+    <script>
+        let isReturnRoute = false;
 
-  // Route geometry (road-following)
-  const osrmUrl =
-    `https://router.project-osrm.org/route/v1/driving/` +
-    `${STOPS.map(s => `${s.lon},${s.lat}`).join(";")}` +
-    `?overview=full&geometries=geojson&steps=false`;
+        // Departure times from EGHQ 
+        const scheduleEGHQ = ["0:15", "0:35", "0:55", "1:15", "1:35", "1:55", "02:25", "02:55", "03:25", "03:55", "04:20", "04:40", "05:00", "5:25", "5:45", "6:05", "6:25", "6:45", "7:10", "7:35", "8:00", "8:25", "8:50", "9:20", "9:45", "10:10", "10:35", "11:00", "11:25", "11:50", "12:10", "12:30", "12:50", "13:10", "13:30", "13:50", "14:15", "14:40", "15:05", "15:30", "15:55", "16:20", "16:45", "17:10", "17:35", "18:00", "18:25", "18:50", "19:15", "19:40", "20:05", "20:30", "20:55", "21:20", "21:45", "22:10", "22:35", "23:00", "23:25", "23:50"];
+        
+        // Departure times from Grosvenor (third column of document) 
+        const scheduleGrosvenor = ["0:43", "1:03", "1:23", "1:43", "2:03", "2:23", "2:53", "3:23", "3:53", "4:23", "4:48", "5:08", "5:28", "5:53", "6:13", "6:33", "6:53", "7:13", "7:38", "8:03", "8:28", "8:53", "9:18", "9:48", "10:13", "10:38", "11:03", "11:28", "11:53", "12:18", "12:38", "12:58", "13:18", "13:38", "13:58", "14:18", "14:43", "15:08", "15:33", "15:58", "16:23", "16:48", "17:17", "17:42", "18:07", "18:32", "18:57", "19:22", "19:47", "20:12", "20:37", "21:00", "21:23", "21:48", "22:13", "22:38", "23:03", "23:28", "23:53"];
 
-  const routeRes = await fetch(osrmUrl, { cache:"no-store" });
-  const routeJson = await routeRes.json();
-  const ROUTE = routeJson.routes?.[0]?.geometry?.coordinates;
-  if (!ROUTE?.length) return;
-  const routeLL = ROUTE.map(([lon,lat]) => ({ lon, lat }));
-
-  // Canvas
-  const canvas = document.getElementById("c");
-  const ctx = canvas.getContext("2d", { alpha:false });
-
-  function resize(){
-    const dpr = Math.max(1, devicePixelRatio || 1);
-    canvas.width  = Math.floor(innerWidth * dpr);
-    canvas.height = Math.floor(innerHeight * dpr);
-    canvas.style.width = innerWidth + "px";
-    canvas.style.height = innerHeight + "px";
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-  }
-  resize();
-  addEventListener("resize", () => { resize(); buildBase(); }, { passive:true });
-
-  // Mercator
-  const TILE = 256;
-  function ll2px(lon, lat, z){
-    const scale = TILE * Math.pow(2, z);
-    const x = (lon + 180) / 360 * scale;
-    const sin = Math.sin(lat * Math.PI / 180);
-    const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale;
-    return { x, y };
-  }
-
-  // Bounds
-  let minLon=Infinity, maxLon=-Infinity, minLat=Infinity, maxLat=-Infinity;
-  for (const p of routeLL){
-    minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon);
-    minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
-  }
-
-  function pickZoom(){
-    for (let z=18; z>=11; z--){
-      const a = ll2px(minLon, maxLat, z);
-      const b = ll2px(maxLon, minLat, z);
-      if (Math.abs(b.x-a.x) < innerWidth-80 && Math.abs(b.y-a.y) < innerHeight-80) return z;
-    }
-    return 12;
-  }
-  let Z = pickZoom();
-  let C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
-
-  // Tile cache
-  const tileCache = new Map();
-  function getTile(z,x,y){
-    const k = `${z}/${x}/${y}`;
-    if (tileCache.has(k)) return tileCache.get(k);
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = tileUrl(z,x,y);
-    tileCache.set(k, img);
-    return img;
-  }
-
-  // Distances along route
-  function haversineMeters(a, b){
-    const R = 6371000, toRad = d => d*Math.PI/180;
-    const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lon-a.lon);
-    const s1 = Math.sin(dLat/2), s2 = Math.sin(dLon/2);
-    const q = s1*s1 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*s2*s2;
-    return 2*R*Math.asin(Math.min(1, Math.sqrt(q)));
-  }
-  const cum = [0];
-  for (let i=1;i<routeLL.length;i++){
-    cum[i] = cum[i-1] + haversineMeters(routeLL[i-1], routeLL[i]);
-  }
-
-  function closestIndex(stop){
-    let bestI=0, best=Infinity;
-    for (let i=0;i<routeLL.length;i++){
-      const d = haversineMeters(stop, routeLL[i]);
-      if (d < best){ best = d; bestI = i; }
-    }
-    return bestI;
-  }
-
-  // Map each stop to a position along the polyline (meters)
-  const idx = [
-    closestIndex(STOPS[0]),
-    closestIndex(STOPS[1]),
-    closestIndex(STOPS[2]),
-    closestIndex(STOPS[3])
-  ];
-  const monotonic = idx[0] <= idx[1] && idx[1] <= idx[2] && idx[2] <= idx[3];
-  // If OSRM returns a loop where indices aren't monotonic, we fallback to time-proportional.
-  const stopDist = monotonic ? [cum[idx[0]], cum[idx[1]], cum[idx[2]], cum[idx[3]]] : null;
-
-  function pointAtDistance(targetMeters){
-    const total = cum[cum.length-1];
-    targetMeters = Math.max(0, Math.min(total, targetMeters));
-    let lo=0, hi=cum.length-1;
-    while (lo<hi){
-      const mid=(lo+hi)>>1;
-      if (cum[mid] < targetMeters) lo=mid+1; else hi=mid;
-    }
-    const i = Math.max(1, lo);
-    const d0=cum[i-1], d1=cum[i];
-    const t = (d1===d0) ? 0 : (targetMeters-d0)/(d1-d0);
-    const a=routeLL[i-1], b=routeLL[i];
-    return { lon:a.lon+(b.lon-a.lon)*t, lat:a.lat+(b.lat-a.lat)*t };
-  }
-
-  // Time helpers
-  function parseHHMM(s){
-    const [h,m] = s.split(":").map(Number);
-    return h*60 + m;
-  }
-  function normalizeTrip(row){
-    // Ensure monotonic times across midnight (e.g., 23:50 ... 0:38)
-    const t = row.map(parseHHMM);
-    for (let i=1;i<t.length;i++){
-      while (t[i] < t[i-1]) t[i] += 1440;
-    }
-    return t; // [t0,t1,t2,t3] absolute
-  }
-  const TRIP_ABS = TRIPS.map(normalizeTrip);
-
-  function nowLocalMinutesFloat(){
-    const d = new Date();
-    const utc = d.getUTCHours()*60 + d.getUTCMinutes() + d.getUTCSeconds()/60 + d.getUTCMilliseconds()/60000;
-    let m = utc + TZ_OFFSET_MIN;
-    m = ((m % 1440) + 1440) % 1440;
-    return m;
-  }
-
-  function activeBuses(nowMin){
-    const buses = [];
-    for (let i=0;i<TRIP_ABS.length;i++){
-      const t = TRIP_ABS[i];
-      for (const shift of [0, -1440]){ // today & yesterday
-        const t0=t[0]+shift, t1=t[1]+shift, t2=t[2]+shift, t3=t[3]+shift;
-        for (const nowShift of [nowMin, nowMin-1440]){
-          if (nowShift >= t0 && nowShift < t3){
-            buses.push({ i, now: nowShift, t0, t1, t2, t3 });
-          }
+        function toggleRoute() {
+            isReturnRoute = !isReturnRoute;
+            const busImg = document.getElementById('bus-toggle');
+            // Instant flip by toggling class without CSS transition
+            busImg.className = isReturnRoute ? 'bus-img bus-flipped' : 'bus-img';
+            updateBoard();
         }
-      }
-    }
-    // keep latest start per trip index
-    const best = new Map();
-    for (const b of buses){
-      if (!best.has(b.i) || b.t0 > best.get(b.i).t0) best.set(b.i, b);
-    }
-    return [...best.values()];
-  }
 
-  // EXACT: bus is at stop i exactly at time ti; moves only in (ti..t(i+1))
-  function busDistanceFor(bus){
-    const { now, t0, t1, t2, t3 } = bus;
-
-    // If we can anchor stops to route distances:
-    if (stopDist){
-      if (now <= t0) return stopDist[0];
-      if (now <  t1){
-        const f = (now - t0) / (t1 - t0 || 1);
-        return stopDist[0] + f * (stopDist[1] - stopDist[0]);
-      }
-      if (now <  t2){
-        const f = (now - t1) / (t2 - t1 || 1);
-        return stopDist[1] + f * (stopDist[2] - stopDist[1]);
-      }
-      if (now <  t3){
-        const f = (now - t2) / (t3 - t2 || 1);
-        return stopDist[2] + f * (stopDist[3] - stopDist[2]);
-      }
-      return stopDist[3];
-    }
-
-    // Fallback: time-proportional along whole route (still exact to times)
-    const total = cum[cum.length-1];
-    const dt = (t3 - t0) || 1;
-    const f = Math.max(0, Math.min(1, (now - t0) / dt));
-    return total * f;
-  }
-
-  // Base layer (map + route + stops) cached to reduce ghosting
-  const base = document.createElement("canvas");
-  const bctx = base.getContext("2d", { alpha:false });
-
-  function syncBase(){
-    const dpr = Math.max(1, devicePixelRatio || 1);
-    base.width  = Math.floor(innerWidth * dpr);
-    base.height = Math.floor(innerHeight * dpr);
-    bctx.setTransform(dpr,0,0,dpr,0,0);
-  }
-
-  function buildBase(){
-    Z = pickZoom();
-    C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
-    syncBase();
-
-    const TL = { x: C.x - innerWidth/2, y: C.y - innerHeight/2 };
-    const maxT = Math.pow(2, Z) - 1;
-
-    bctx.fillStyle="#fff";
-    bctx.fillRect(0,0,innerWidth,innerHeight);
-
-    for (let ty=Math.floor(TL.y/TILE); ty<=Math.floor((TL.y+innerHeight)/TILE); ty++){
-      if (ty<0 || ty>maxT) continue;
-      for (let tx=Math.floor(TL.x/TILE); tx<=Math.floor((TL.x+innerWidth)/TILE); tx++){
-        let x = tx % (maxT+1); if (x<0) x += (maxT+1);
-        const img = getTile(Z, x, ty);
-        if (img.complete){
-          bctx.drawImage(img, x*TILE - TL.x, ty*TILE - TL.y, TILE, TILE);
+        function getCorrectedDate() {
+            const date = new Date();
+            date.setHours(date.getHours() + 4);
+            return date;
         }
-      }
-    }
 
-    // route halo + core
-    bctx.lineJoin="round";
-    bctx.lineCap="round";
+        function getCountdown(busTimeStr, now) {
+            let [h, m] = busTimeStr.split(':').map(Number);
+            const busDate = new Date(now);
+            busDate.setHours(h, m, 0, 0);
 
-    bctx.strokeStyle="#fff";
-    bctx.lineWidth=ROUTE_W_OUT;
-    bctx.beginPath();
-    for (let i=0;i<routeLL.length;i++){
-      const p = ll2px(routeLL[i].lon, routeLL[i].lat, Z);
-      const x = p.x - TL.x, y = p.y - TL.y;
-      if (!i) bctx.moveTo(x,y); else bctx.lineTo(x,y);
-    }
-    bctx.stroke();
+            if (busDate < now) {
+                busDate.setDate(busDate.getDate() + 1);
+            }
 
-    bctx.strokeStyle="#000";
-    bctx.lineWidth=ROUTE_W_IN;
-    bctx.stroke();
+            const diff = busDate - now;
+            if (diff <= 0) return "00:00";
 
-    // stop markers (3 unique)
-    for (const s of [STOPS[0], STOPS[1], STOPS[2]]){
-      const p = ll2px(s.lon, s.lat, Z);
-      const x = p.x - TL.x, y = p.y - TL.y;
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
+        }
 
-      bctx.fillStyle="#fff";
-      bctx.strokeStyle="#000";
-      bctx.lineWidth=4;
-      bctx.beginPath();
-      bctx.arc(x,y,STOP_R_OUT,0,Math.PI*2);
-      bctx.fill(); bctx.stroke();
+        function updateBoard() {
+            const now = getCorrectedDate();
+            document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0];
+            
+            const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                               now.getMinutes().toString().padStart(2, '0');
+            
+            // Toggle Departure and Destination based on click 
+            const activeSchedule = isReturnRoute ? scheduleEGHQ : scheduleGrosvenor;
+            const fromLabel = isReturnRoute ? "EGHQ" : "GROSVENOR";
+            const toLabel = isReturnRoute ? "GROSVENOR" : "EGHQ";
 
-      bctx.fillStyle="#000";
-      bctx.beginPath();
-      bctx.arc(x,y,STOP_R_IN,0,Math.PI*2);
-      bctx.fill();
-    }
-  }
+            // Normalizing for comparison
+            const normalizedSchedule = activeSchedule.map(t => {
+                let [h, m] = t.split(':');
+                return h.padStart(2, '0') + ":" + m.padStart(2, '0');
+            });
+            const normalizedCurrent = currentStr;
 
-  buildBase();
-  setTimeout(buildBase, 700);
-  setTimeout(buildBase, 1400);
+            let nextIndex = normalizedSchedule.findIndex(t => t > normalizedCurrent);
+            if (nextIndex === -1) nextIndex = 0;
+            
+            let filtered = [];
+            for (let i = 0; i < 3; i++) {
+                filtered.push(activeSchedule[(nextIndex + i) % activeSchedule.length]);
+            }
 
-  // Draw loop: continuous bus motion, exact to timetable times
-  function frame(){
-    ctx.drawImage(base, 0, 0, innerWidth, innerHeight);
+            document.getElementById('schedule-container').innerHTML = filtered.map((t, i) => `
+                <div class="row ${i === 0 ? 'next' : ''}">
+                    <div class="col-time">${t}</div>
+                    <div class="col-from">${fromLabel}</div>
+                    <div class="col-to">${toLabel}</div>
+                    <div class="col-due">${getCountdown(t, now)}</div>
+                    <div class="col-status">${i === 0 ? '<span class="next-label">NEXT</span>' : 'SCHED'}</div>
+                </div>
+            `).join('');
+        }
 
-    const TL = { x: C.x - innerWidth/2, y: C.y - innerHeight/2 };
-    const now = nowLocalMinutesFloat();
-    const buses = activeBuses(now);
+        // ====== BUS MAP INITIALIZATION ======
+        (async () => {
+            const ROUTE_W_OUT = 14;
+            const ROUTE_W_IN  = 8;
+            const STOP_R_OUT  = 10;
+            const STOP_R_IN   = 5;
+            const BUS_R_OUT   = 10;
+            const BUS_R_IN    = 4;
 
-    // Draw all active buses (tiny deterministic offset to avoid perfect overlap)
-    const spread = 7;
-    for (const b of buses){
-      const dist = busDistanceFor(b);
-      const pos = pointAtDistance(dist);
-      const p = ll2px(pos.lon, pos.lat, Z);
+            const TZ_OFFSET_MIN = 4 * 60;
 
-      let x = p.x - TL.x;
-      let y = p.y - TL.y;
+            const STOPS = [
+                { name:"EGHQ", lon:55.3659608, lat:25.2417461 },
+                { name:"PINK", lon:55.2721115, lat:25.2102779 },
+                { name:"GROS", lon:55.2802068, lat:25.2232332 },
+                { name:"EGHQ", lon:55.3659608, lat:25.2417461 }
+            ];
 
-      const ang = (b.i * 137.5) * Math.PI/180;
-      x += Math.cos(ang) * spread * 0.35;
-      y += Math.sin(ang) * spread * 0.35;
+            const TRIPS = [
+                ["0:15","0:38","0:43","1:03"],
+                ["0:35","0:58","1:03","1:23"],
+                ["0:55","1:18","1:23","1:43"],
+                ["1:15","1:38","1:43","2:03"],
+                ["1:35","1:58","2:03","2:23"],
+                ["1:55","2:18","2:23","2:43"],
+                ["02:25","2:48","2:53","3:13"],
+                ["02:55","3:18","3:23","3:43"],
+                ["03:25","3:48","3:53","4:13"],
+                ["03:55","4:18","4:23","4:43"],
+                ["04:20","4:43","4:48","5:08"],
+                ["04:40","5:03","5:08","5:28"],
+                ["05:00","5:23","5:28","5:48"],
+                ["5:25","5:48","5:53","6:13"],
+                ["5:45","6:08","6:13","6:33"],
+                ["6:05","6:28","6:33","6:53"],
+                ["6:25","6:48","6:53","7:13"],
+                ["6:45","7:08","7:13","7:33"],
+                ["7:10","7:33","7:38","7:58"],
+                ["7:35","7:58","8:03","8:23"],
+                ["8:00","8:23","8:28","8:48"],
+                ["8:25","8:48","8:53","9:13"],
+                ["8:50","9:13","9:18","9:38"],
+                ["9:20","9:43","9:48","10:08"],
+                ["9:45","10:08","10:13","10:33"],
+                ["10:10","10:33","10:38","10:58"],
+                ["10:35","10:58","11:03","11:23"],
+                ["11:00","11:23","11:28","11:48"],
+                ["11:25","11:48","11:53","12:13"],
+                ["11:50","12:13","12:18","12:38"],
+                ["12:10","12:33","12:38","12:58"],
+                ["12:30","12:53","12:58","13:18"],
+                ["12:50","13:13","13:18","13:38"],
+                ["13:10","13:33","13:38","13:58"],
+                ["13:30","13:53","13:58","14:18"],
+                ["13:50","14:13","14:18","14:38"],
+                ["14:15","14:38","14:43","15:03"],
+                ["14:40","15:03","15:08","15:28"],
+                ["15:05","15:28","15:33","15:53"],
+                ["15:30","15:53","15:58","16:18"],
+                ["15:55","16:18","16:23","16:43"],
+                ["16:20","16:43","16:48","17:08"],
+                ["16:45","17:10","17:17","17:39"],
+                ["17:10","17:35","17:42","18:04"],
+                ["17:35","18:00","18:07","18:32"],
+                ["18:00","18:25","18:32","18:57"],
+                ["18:25","18:50","18:57","19:22"],
+                ["18:50","19:15","19:22","19:47"],
+                ["19:15","19:40","19:47","20:12"],
+                ["19:40","20:05","20:12","20:34"],
+                ["20:05","20:30","20:37","20:59"],
+                ["20:30","20:55","21:00","21:20"],
+                ["20:55","21:18","21:23","21:43"],
+                ["21:20","21:43","21:48","22:08"],
+                ["21:45","22:08","22:13","22:33"],
+                ["22:10","22:33","22:38","22:58"],
+                ["22:35","22:58","23:03","23:23"],
+                ["23:00","23:23","23:28","23:48"],
+                ["23:25","23:48","23:53","0:13"],
+                ["23:50","0:13","0:18","0:38"]
+            ];
 
-      // Very visible e-ink dot (white -> black ring -> white core)
-      ctx.fillStyle="#fff";
-      ctx.beginPath(); ctx.arc(x,y,BUS_R_OUT,0,Math.PI*2); ctx.fill();
+            const tileUrl = (z,x,y) => `https://a.basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`;
 
-      ctx.fillStyle="#000";
-      ctx.beginPath(); ctx.arc(x,y,BUS_R_OUT-2,0,Math.PI*2); ctx.fill();
+            const osrmUrl =
+                `https://router.project-osrm.org/route/v1/driving/` +
+                `${STOPS.map(s => `${s.lon},${s.lat}`).join(";")}` +
+                `?overview=full&geometries=geojson&steps=false`;
 
-      ctx.fillStyle="#fff";
-      ctx.beginPath(); ctx.arc(x,y,BUS_R_IN,0,Math.PI*2); ctx.fill();
-    }
+            const routeRes = await fetch(osrmUrl, { cache:"no-store" });
+            const routeJson = await routeRes.json();
+            const ROUTE = routeJson.routes?.[0]?.geometry?.coordinates;
+            if (!ROUTE?.length) return;
+            const routeLL = ROUTE.map(([lon,lat]) => ({ lon, lat }));
 
-    requestAnimationFrame(frame);
-  }
+            const canvas = document.getElementById("map-canvas");
+            const ctx = canvas.getContext("2d", { alpha:false });
 
-  frame();
-})();
-</script>
+            function resize(){
+                const dpr = Math.max(1, devicePixelRatio || 1);
+                const container = document.getElementById('map-section');
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                canvas.width  = Math.floor(w * dpr);
+                canvas.height = Math.floor(h * dpr);
+                canvas.style.width = w + "px";
+                canvas.style.height = h + "px";
+                ctx.setTransform(dpr,0,0,dpr,0,0);
+            }
+            resize();
+            addEventListener("resize", () => { resize(); buildBase(); }, { passive:true });
+
+            const TILE = 256;
+            function ll2px(lon, lat, z){
+                const scale = TILE * Math.pow(2, z);
+                const x = (lon + 180) / 360 * scale;
+                const sin = Math.sin(lat * Math.PI / 180);
+                const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale;
+                return { x, y };
+            }
+
+            let minLon=Infinity, maxLon=-Infinity, minLat=Infinity, maxLat=-Infinity;
+            for (const p of routeLL){
+                minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon);
+                minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
+            }
+
+            function pickZoom(){
+                const container = document.getElementById('map-section');
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                for (let z=18; z>=11; z--){
+                    const a = ll2px(minLon, maxLat, z);
+                    const b = ll2px(maxLon, minLat, z);
+                    if (Math.abs(b.x-a.x) < w-80 && Math.abs(b.y-a.y) < h-80) return z;
+                }
+                return 12;
+            }
+            let Z = pickZoom();
+            let C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
+
+            const tileCache = new Map();
+            function getTile(z,x,y){
+                const k = `${z}/${x}/${y}`;
+                if (tileCache.has(k)) return tileCache.get(k);
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = tileUrl(z,x,y);
+                tileCache.set(k, img);
+                return img;
+            }
+
+            function haversineMeters(a, b){
+                const R = 6371000, toRad = d => d*Math.PI/180;
+                const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lon-a.lon);
+                const s1 = Math.sin(dLat/2), s2 = Math.sin(dLon/2);
+                const q = s1*s1 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*s2*s2;
+                return 2*R*Math.asin(Math.min(1, Math.sqrt(q)));
+            }
+            const cum = [0];
+            for (let i=1;i<routeLL.length;i++){
+                cum[i] = cum[i-1] + haversineMeters(routeLL[i-1], routeLL[i]);
+            }
+
+            function closestIndex(stop){
+                let bestI=0, best=Infinity;
+                for (let i=0;i<routeLL.length;i++){
+                    const d = haversineMeters(stop, routeLL[i]);
+                    if (d < best){ best = d; bestI = i; }
+                }
+                return bestI;
+            }
+
+            const idx = [
+                closestIndex(STOPS[0]),
+                closestIndex(STOPS[1]),
+                closestIndex(STOPS[2]),
+                closestIndex(STOPS[3])
+            ];
+            const monotonic = idx[0] <= idx[1] && idx[1] <= idx[2] && idx[2] <= idx[3];
+            const stopDist = monotonic ? [cum[idx[0]], cum[idx[1]], cum[idx[2]], cum[idx[3]]] : null;
+
+            function pointAtDistance(targetMeters){
+                const total = cum[cum.length-1];
+                targetMeters = Math.max(0, Math.min(total, targetMeters));
+                let lo=0, hi=cum.length-1;
+                while (lo<hi){
+                    const mid=(lo+hi)>>1;
+                    if (cum[mid] < targetMeters) lo=mid+1; else hi=mid;
+                }
+                const i = Math.max(1, lo);
+                const d0=cum[i-1], d1=cum[i];
+                const t = (d1===d0) ? 0 : (targetMeters-d0)/(d1-d0);
+                const a=routeLL[i-1], b=routeLL[i];
+                return { lon:a.lon+(b.lon-a.lon)*t, lat:a.lat+(b.lat-a.lat)*t };
+            }
+
+            function parseHHMM(s){
+                const [h,m] = s.split(":").map(Number);
+                return h*60 + m;
+            }
+            function normalizeTrip(row){
+                const t = row.map(parseHHMM);
+                for (let i=1;i<t.length;i++){
+                    while (t[i] < t[i-1]) t[i] += 1440;
+                }
+                return t;
+            }
+            const TRIP_ABS = TRIPS.map(normalizeTrip);
+
+            function nowLocalMinutesFloat(){
+                const d = new Date();
+                const utc = d.getUTCHours()*60 + d.getUTCMinutes() + d.getUTCSeconds()/60 + d.getUTCMilliseconds()/60000;
+                let m = utc + TZ_OFFSET_MIN;
+                m = ((m % 1440) + 1440) % 1440;
+                return m;
+            }
+
+            function activeBuses(nowMin){
+                const buses = [];
+                for (let i=0;i<TRIP_ABS.length;i++){
+                    const t = TRIP_ABS[i];
+                    for (const shift of [0, -1440]){
+                        const t0=t[0]+shift, t1=t[1]+shift, t2=t[2]+shift, t3=t[3]+shift;
+                        for (const nowShift of [nowMin, nowMin-1440]){
+                            if (nowShift >= t0 && nowShift < t3){
+                                buses.push({ i, now: nowShift, t0, t1, t2, t3 });
+                            }
+                        }
+                    }
+                }
+                const best = new Map();
+                for (const b of buses){
+                    if (!best.has(b.i) || b.t0 > best.get(b.i).t0) best.set(b.i, b);
+                }
+                return [...best.values()];
+            }
+
+            function busDistanceFor(bus){
+                const { now, t0, t1, t2, t3 } = bus;
+
+                if (stopDist){
+                    if (now <= t0) return stopDist[0];
+                    if (now <  t1){
+                        const f = (now - t0) / (t1 - t0 || 1);
+                        return stopDist[0] + f * (stopDist[1] - stopDist[0]);
+                    }
+                    if (now <  t2){
+                        const f = (now - t1) / (t2 - t1 || 1);
+                        return stopDist[1] + f * (stopDist[2] - stopDist[1]);
+                    }
+                    if (now <  t3){
+                        const f = (now - t2) / (t3 - t2 || 1);
+                        return stopDist[2] + f * (stopDist[3] - stopDist[2]);
+                    }
+                    return stopDist[3];
+                }
+
+                const total = cum[cum.length-1];
+                const dt = (t3 - t0) || 1;
+                const f = Math.max(0, Math.min(1, (now - t0) / dt));
+                return total * f;
+            }
+
+            const base = document.createElement("canvas");
+            const bctx = base.getContext("2d", { alpha:false });
+
+            function syncBase(){
+                const dpr = Math.max(1, devicePixelRatio || 1);
+                const container = document.getElementById('map-section');
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                base.width  = Math.floor(w * dpr);
+                base.height = Math.floor(h * dpr);
+                bctx.setTransform(dpr,0,0,dpr,0,0);
+            }
+
+            function buildBase(){
+                Z = pickZoom();
+                C = ll2px((minLon+maxLon)/2, (minLat+maxLat)/2, Z);
+                syncBase();
+
+                const container = document.getElementById('map-section');
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                const TL = { x: C.x - w/2, y: C.y - h/2 };
+                const maxT = Math.pow(2, Z) - 1;
+
+                bctx.fillStyle="#fff";
+                bctx.fillRect(0,0,w,h);
+
+                for (let ty=Math.floor(TL.y/TILE); ty<=Math.floor((TL.y+h)/TILE); ty++){
+                    if (ty<0 || ty>maxT) continue;
+                    for (let tx=Math.floor(TL.x/TILE); tx<=Math.floor((TL.x+w)/TILE); tx++){
+                        let x = tx % (maxT+1); if (x<0) x += (maxT+1);
+                        const img = getTile(Z, x, ty);
+                        if (img.complete){
+                            bctx.drawImage(img, x*TILE - TL.x, ty*TILE - TL.y, TILE, TILE);
+                        }
+                    }
+                }
+
+                bctx.lineJoin="round";
+                bctx.lineCap="round";
+
+                bctx.strokeStyle="#fff";
+                bctx.lineWidth=ROUTE_W_OUT;
+                bctx.beginPath();
+                for (let i=0;i<routeLL.length;i++){
+                    const p = ll2px(routeLL[i].lon, routeLL[i].lat, Z);
+                    const x = p.x - TL.x, y = p.y - TL.y;
+                    if (!i) bctx.moveTo(x,y); else bctx.lineTo(x,y);
+                }
+                bctx.stroke();
+
+                bctx.strokeStyle="#000";
+                bctx.lineWidth=ROUTE_W_IN;
+                bctx.stroke();
+
+                for (const s of [STOPS[0], STOPS[1], STOPS[2]]){
+                    const p = ll2px(s.lon, s.lat, Z);
+                    const x = p.x - TL.x, y = p.y - TL.y;
+
+                    bctx.fillStyle="#fff";
+                    bctx.strokeStyle="#000";
+                    bctx.lineWidth=4;
+                    bctx.beginPath();
+                    bctx.arc(x,y,STOP_R_OUT,0,Math.PI*2);
+                    bctx.fill(); bctx.stroke();
+
+                    bctx.fillStyle="#000";
+                    bctx.beginPath();
+                    bctx.arc(x,y,STOP_R_IN,0,Math.PI*2);
+                    bctx.fill();
+                }
+            }
+
+            buildBase();
+            setTimeout(buildBase, 700);
+            setTimeout(buildBase, 1400);
+
+            function frame(){
+                const container = document.getElementById('map-section');
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                ctx.drawImage(base, 0, 0, w, h);
+
+                const TL = { x: C.x - w/2, y: C.y - h/2 };
+                const now = nowLocalMinutesFloat();
+                const buses = activeBuses(now);
+
+                const spread = 7;
+                for (const b of buses){
+                    const dist = busDistanceFor(b);
+                    const pos = pointAtDistance(dist);
+                    const p = ll2px(pos.lon, pos.lat, Z);
+
+                    let x = p.x - TL.x;
+                    let y = p.y - TL.y;
+
+                    const ang = (b.i * 137.5) * Math.PI/180;
+                    x += Math.cos(ang) * spread * 0.35;
+                    y += Math.sin(ang) * spread * 0.35;
+
+                    ctx.fillStyle="#fff";
+                    ctx.beginPath(); ctx.arc(x,y,BUS_R_OUT,0,Math.PI*2); ctx.fill();
+
+                    ctx.fillStyle="#000";
+                    ctx.beginPath(); ctx.arc(x,y,BUS_R_OUT-2,0,Math.PI*2); ctx.fill();
+
+                    ctx.fillStyle="#fff";
+                    ctx.beginPath(); ctx.arc(x,y,BUS_R_IN,0,Math.PI*2); ctx.fill();
+                }
+
+                requestAnimationFrame(frame);
+            }
+
+            frame();
+        })();
+
+        setInterval(updateBoard, 1000);
+        updateBoard();
+    </script>
 </body>
 </html>
