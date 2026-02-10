@@ -629,31 +629,22 @@
               var pos = pointAtDistance(dist);
               var bp = ll2px(pos.lon, pos.lat, Z);
 
-              var posAhead = pointAtDistance(dist + 30);
-              var bpAhead = ll2px(posAhead.lon, posAhead.lat, Z);
-
               var bx = bp.x - TL.x;
               var by = bp.y - TL.y;
-
-              var bx2 = bpAhead.x - TL.x;
-              var by2 = bpAhead.y - TL.y;
 
               // tiny offset per bus to reduce overlap
               var ang = (b.i * 137.5) * Math.PI / 180;
               bx += Math.cos(ang) * 2.5;
               by += Math.sin(ang) * 2.5;
-              bx2 += Math.cos(ang) * 2.5;
-              by2 += Math.sin(ang) * 2.5;
 
-              var heading = Math.atan2(by2 - by, bx2 - bx);
-              ctx.save();
-              ctx.translate(bx, by);
-              ctx.rotate(heading);
-              ctx.font = "22px \"Amazon Ember\", \"Segoe UI Emoji\", \"Noto Color Emoji\", sans-serif";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText("🚌", 0, 0);
-              ctx.restore();
+              ctx.fillStyle="#fff";
+              ctx.beginPath(); ctx.arc(bx,by,BUS_R_OUT,0,Math.PI*2); ctx.fill();
+
+              ctx.fillStyle="#000";
+              ctx.beginPath(); ctx.arc(bx,by,BUS_R_OUT-2,0,Math.PI*2); ctx.fill();
+
+              ctx.fillStyle="#fff";
+              ctx.beginPath(); ctx.arc(bx,by,BUS_R_IN,0,Math.PI*2); ctx.fill();
             }
           }
 
