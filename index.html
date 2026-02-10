@@ -629,49 +629,31 @@
               var pos = pointAtDistance(dist);
               var bp = ll2px(pos.lon, pos.lat, Z);
 
+              var posAhead = pointAtDistance(dist + 30);
+              var bpAhead = ll2px(posAhead.lon, posAhead.lat, Z);
+
               var bx = bp.x - TL.x;
               var by = bp.y - TL.y;
+
+              var bx2 = bpAhead.x - TL.x;
+              var by2 = bpAhead.y - TL.y;
 
               // tiny offset per bus to reduce overlap
               var ang = (b.i * 137.5) * Math.PI / 180;
               bx += Math.cos(ang) * 2.5;
               by += Math.sin(ang) * 2.5;
+              bx2 += Math.cos(ang) * 2.5;
+              by2 += Math.sin(ang) * 2.5;
 
-              // Direction arrow based on route tangent
-              var delta = 30; // meters
-              var posA = pointAtDistance(dist - delta);
-              var posB = pointAtDistance(dist + delta);
-              var pa = ll2px(posA.lon, posA.lat, Z);
-              var pb = ll2px(posB.lon, posB.lat, Z);
-              var dx = (pb.x - pa.x);
-              var dy = (pb.y - pa.y);
-              var angle = Math.atan2(dy, dx);
-
-              var arrowLen = 18;
-              var wingLen = 8;
-              var wingAng = Math.PI / 6;
-
-              var tipX = bx + Math.cos(angle) * (arrowLen / 2);
-              var tipY = by + Math.sin(angle) * (arrowLen / 2);
-              var tailX = bx - Math.cos(angle) * (arrowLen / 2);
-              var tailY = by - Math.sin(angle) * (arrowLen / 2);
-
-              ctx.strokeStyle = "#000";
-              ctx.lineWidth = 4;
-              ctx.lineCap = "round";
-              ctx.lineJoin = "round";
-
-              ctx.beginPath();
-              ctx.moveTo(tailX, tailY);
-              ctx.lineTo(tipX, tipY);
-              ctx.stroke();
-
-              ctx.beginPath();
-              ctx.moveTo(tipX, tipY);
-              ctx.lineTo(tipX - Math.cos(angle - wingAng) * wingLen, tipY - Math.sin(angle - wingAng) * wingLen);
-              ctx.moveTo(tipX, tipY);
-              ctx.lineTo(tipX - Math.cos(angle + wingAng) * wingLen, tipY - Math.sin(angle + wingAng) * wingLen);
-              ctx.stroke();
+              var heading = Math.atan2(by2 - by, bx2 - bx);
+              ctx.save();
+              ctx.translate(bx, by);
+              ctx.rotate(heading);
+              ctx.font = "22px \"Amazon Ember\", \"Segoe UI Emoji\", \"Noto Color Emoji\", sans-serif";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText("🚌", 0, 0);
+              ctx.restore();
             }
           }
 
