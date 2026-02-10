@@ -347,13 +347,29 @@
           // --------- CANVAS ----------
           var canvas = document.getElementById("map-canvas");
           var ctx = canvas.getContext("2d", {alpha:false});
+          var CANVAS_CSS_W = 0;
+          var CANVAS_CSS_H = 0;
 
-          function resize(){
+          function getCanvasCssSize(){
             var container = document.getElementById('map-section');
             var w = container.offsetWidth || container.clientWidth || window.innerWidth - 40;
             var h = container.offsetHeight || container.clientHeight || (window.innerHeight / 2);
-            canvas.width = w;
-            canvas.height = h;
+            return { w: w, h: h };
+          }
+
+          function resize(){
+            var size = getCanvasCssSize();
+            var w = size.w;
+            var h = size.h;
+            var dpr = window.devicePixelRatio || 1;
+            CANVAS_CSS_W = w;
+            CANVAS_CSS_H = h;
+            canvas.style.width = w + "px";
+            canvas.style.height = h + "px";
+            canvas.width = Math.max(1, Math.floor(w * dpr));
+            canvas.height = Math.max(1, Math.floor(h * dpr));
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.imageSmoothingEnabled = true;
             if (routeLL && cum && C) {
               setTimeout(draw, 50);
             }
@@ -479,9 +495,9 @@
                 if (p.lat>maxLat) maxLat=p.lat;
               }
               
-              var container = document.getElementById('map-section');
-              var w = canvas.width || container.offsetWidth || window.innerWidth - 40;
-              var h = canvas.height || container.offsetHeight || (window.innerHeight / 2);
+              var size = getCanvasCssSize();
+              var w = size.w;
+              var h = size.h;
               
               for (var z=18; z>=11; z--){
                 var a = ll2px(minLon, maxLat, z);
@@ -555,7 +571,8 @@
           function draw(){
             if (!routeLL || !cum || !C) return;
 
-            var w = canvas.width, h = canvas.height;
+            var w = CANVAS_CSS_W || canvas.clientWidth || canvas.width;
+            var h = CANVAS_CSS_H || canvas.clientHeight || canvas.height;
             ctx.fillStyle="#fff";
             ctx.fillRect(0,0,w,h);
 
