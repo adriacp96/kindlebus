@@ -612,10 +612,14 @@
               var sx = sp.x - TL.x, sy = sp.y - TL.y;
 
               ctx.fillStyle="#fff"; ctx.strokeStyle="#000"; ctx.lineWidth=4;
-              ctx.beginPath(); ctx.arc(sx,sy,STOP_R_OUT,0,Math.PI*2); ctx.fill(); ctx.stroke();
+              ctx.beginPath();
+              ctx.rect(sx - STOP_R_OUT, sy - STOP_R_OUT, STOP_R_OUT * 2, STOP_R_OUT * 2);
+              ctx.fill(); ctx.stroke();
 
               ctx.fillStyle="#000";
-              ctx.beginPath(); ctx.arc(sx,sy,STOP_R_IN,0,Math.PI*2); ctx.fill();
+              ctx.beginPath();
+              ctx.rect(sx - STOP_R_IN, sy - STOP_R_IN, STOP_R_IN * 2, STOP_R_IN * 2);
+              ctx.fill();
             }
 
             // buses
