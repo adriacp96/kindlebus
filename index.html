@@ -10,16 +10,15 @@
             box-sizing: border-box;
         }
         body {
-            font-family: "Courier New", Courier, monospace;
+            font-family: Helvetica, sans-serif;
             background-color: #ffffff;
             color: #000000;
             margin: 0;
-            padding: 30px;
             overflow: hidden;
         }
         .content-wrapper {
             max-width: 450px;
-            margin: 0 auto;
+            margin: 30px auto;
         }
         .route-selector {
             display: flex;
@@ -33,13 +32,13 @@
             letter-spacing: 1px;
             padding: 15px 10px;
             background-color: #fff;
-            color: #0000AA;
-            border: 3px solid #0000AA;
+            color: #8A2BE2; /* Violet */
+            border: 3px solid #8A2BE2; /* Violet */
             border-radius: 6px;
             font-weight: bold;
         }
         .toggle-btn.active {
-            background-color: #0000AA;
+            background-color: #8A2BE2; /* Violet */
             color: #fff;
         }
         .countdown-container {
@@ -51,7 +50,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             font-weight: bold;
-            color: #0000AA;
+            color: #000;
             margin-bottom: 5px;
         }
         .countdown-time {
@@ -119,7 +118,6 @@
             z-index: 9999;
         }
         #pacman-container {
-            transition: transform 1s linear;
             visibility: hidden;
         }
         #pacman {
@@ -128,78 +126,60 @@
             stroke-width: 2;
         }
         .pellet {
-            fill: #0000AA;
+            fill: #888;
         }
         .toggle-wrapper {
             display: flex;
             align-items: center;
             justify-content: center;
             margin-top: 25px;
-            gap: 15px;
         }
-        .toggle-label {
-            font-size: 14px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #0000AA;
-        }
-        .pacman-toggle {
+        .pacman-toggle { /* This is the <label> element */
+            display: inline-block;
+            width: 40px; /* Size of the ghost */
+            height: 40px;
             cursor: pointer;
             -webkit-user-select: none;
             user-select: none;
+            position: relative;
         }
         .pacman-toggle input {
             opacity: 0;
-            width: 0;
-            height: 0;
-            position: absolute;
-        }
-        .pacman-toggle-track {
-            position: relative;
-            width: 74px;
-            height: 34px;
-            background-color: #000;
-            border: 3px solid #0000AA;
-            border-radius: 17px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 8px;
-        }
-        .pellet-sm, .pellet-lg {
-            background-color: #FFFF00;
-            border-radius: 50%;
-        }
-        .pellet-sm {
-            width: 6px;
-            height: 6px;
-        }
-        .pellet-lg {
-            width: 12px;
-            height: 12px;
-        }
-        .pacman-knob {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            width: 20px;
-            height: 20px;
-            transition: transform 0.4s;
-        }
-        .pacman-knob svg {
             width: 100%;
             height: 100%;
-            fill: #FFFF00;
-            stroke: #000;
-            stroke-width: 2;
-            transition: transform 0.4s;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
-        input:checked + .pacman-toggle-track .pacman-knob {
-            transform: translateX(26px);
+        #ghost-toggle-svg {
+            width: 100%;
+            height: 100%;
         }
-        input:checked + .pacman-toggle-track .pacman-knob svg {
-            transform: scaleX(-1);
+        .ghost-body {
+            fill: #FF8C00; /* Orange for "off" state */
+            stroke: none;
+            transition: fill 0.3s;
+        }
+        .ghost-eye {
+            fill: #fff;
+            stroke: none;
+        }
+        .ghost-pupil {
+            fill: #0000AA;
+            stroke: none;
+        }
+        .pupils-right {
+            display: none;
+        }
+        .pacman-toggle input:checked + #ghost-toggle-svg .ghost-body {
+            fill: #0000AA;
+        }
+        .pacman-toggle input:checked + #ghost-toggle-svg .pupils-left {
+            display: none;
+        }
+        .pacman-toggle input:checked + #ghost-toggle-svg .pupils-right {
+            display: block;
         }
     </style>
 </head>
@@ -228,19 +208,22 @@
         </ul>
 
         <div class="toggle-wrapper">
-            <span class="toggle-label">Animation</span>
             <label class="pacman-toggle" for="animation-toggle">
-                <input type="checkbox" id="animation-toggle" checked>
-                <div class="pacman-toggle-track">
-                    <div class="pellet-sm"></div>
-                    <div class="pellet-lg"></div>
-                    <div class="pacman-knob">
-                        <svg viewBox="-12 -12 24 24">
-                            <!-- This Pac-Man faces right -->
-                            <path d="M 0,0 L 12,-7 A 12 12 0 1 1 12,7 Z"></path>
-                        </svg>
-                    </div>
-                </div>
+                <input type="checkbox" id="animation-toggle">
+                <svg id="ghost-toggle-svg" viewBox="0 0 24 24">
+                    <!-- Ghost path -->
+                    <path class="ghost-body" d="M 2 10 A 10 10 0 0 1 22 10 V 18 L 19 21 L 16 18 L 12 21 L 8 18 L 5 21 L 2 18 Z" />
+                    <circle class="ghost-eye" cx="7" cy="9" r="3" />
+                    <circle class="ghost-eye" cx="17" cy="9" r="3" />
+                    <g class="pupils-left">
+                        <circle class="ghost-pupil" cx="6" cy="10" r="1.5" />
+                        <circle class="ghost-pupil" cx="16" cy="10" r="1.5" />
+                    </g>
+                    <g class="pupils-right">
+                        <circle class="ghost-pupil" cx="8" cy="10" r="1.5" />
+                        <circle class="ghost-pupil" cx="18" cy="10" r="1.5" />
+                    </g>
+                </svg>
             </label>
         </div>
     </div>
@@ -250,6 +233,8 @@
         var pellets = [];
         var lastPct = 0;
         var isAnimationEnabled = true;
+        var MOUTH_OPEN_PATH = 'M 0,0 L -12,-7 A 12 12 0 1 1 -12,7 Z';
+        var MOUTH_CLOSED_PATH = 'M 0,0 L -12,-1 A 12 12 0 1 1 -12,1 Z';
         var routeData = {
             name: "Route 5",
             stops: ['HQ (Dep)', 'Sarab 1', 'Safa Twr', 'Sarab 5', 'Sarab 3', 'Sarab 2', 'Sarab 4', 'HQ (Arr)'],
@@ -272,6 +257,14 @@
         }
 
         function updateUI() {
+            var now = new Date();
+            var pacmanPath = document.getElementById('pacman');
+            if (now.getSeconds() % 2 === 0) {
+                pacmanPath.setAttribute('d', MOUTH_OPEN_PATH);
+            } else {
+                pacmanPath.setAttribute('d', MOUTH_CLOSED_PATH);
+            }
+
             // Reset pellets when a new bus cycle starts
             var currentPct = calculatePercentage();
             if (currentPct < lastPct) {
@@ -281,7 +274,6 @@
             var stopIndex = currentStopIndex;
             
             var trips = routeData.dataStr.split('|');
-            var now = new Date();
             var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
             
             var list = [];
@@ -453,16 +445,6 @@
                 pellets.push({ el: pellet, pos: L });
             }
 
-            // Pac-Man mouth animation
-            var pacmanPath = document.getElementById('pacman');
-            var mouthOpen = 'M 0,0 L -12,-7 A 12 12 0 1 1 -12,7 Z';
-            var mouthClosed = 'M 0,0 L -12,-1 A 12 12 0 1 1 -12,1 Z';
-            var isOpen = true;
-            setInterval(function() {
-                pacmanPath.setAttribute('d', isOpen ? mouthClosed : mouthOpen);
-                isOpen = !isOpen;
-            }, 250);
-
             var ul = document.getElementById('scheduleList');
             ul.innerHTML = ''; 
             for (var j = 0; j < 5; j++) {
@@ -481,10 +463,6 @@
 
             var pacmanContainer = document.getElementById('pacman-container');
             pacmanContainer.style.visibility = 'visible';
-            // Add transition after the first placement to avoid initial animation from corner
-            setTimeout(function() {
-                pacmanContainer.style.transition = 'transform 1s linear';
-            }, 100);
 
             var animationToggle = document.getElementById('animation-toggle');
             var borderSvg = document.getElementById('borderSvg');
