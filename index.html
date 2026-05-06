@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus-Man</title>
+    <title>Kindle Bus</title>
     <style>
         /* High contrast, Kindle friendly styles */
         * {
@@ -15,10 +15,14 @@
             color: #000000;
             margin: 0;
             overflow: hidden;
+            display: flex;
+            justify-content: center; /* Center horizontally */
+            align-items: center;   /* Center vertically */
+            height: 100vh;
         }
         .content-wrapper {
             max-width: 450px;
-            margin: 30px auto;
+            width: 100%; /* Take up available width up to max-width */
         }
         .route-selector {
             display: flex;
@@ -68,6 +72,7 @@
         .schedule-list {
             list-style: none;
             margin: 0;
+            padding: 0;
         }
         .schedule-item {
             display: flex;
@@ -313,7 +318,7 @@
             
             if (isAnimationEnabled) {
                 // Pac-Man Animation Logic
-                var margin = 15;
+                var margin = 30;
                 var bw = window.innerWidth;
                 var bh = window.innerHeight;
                 var pathH = bw - (margin * 2);
@@ -411,7 +416,7 @@
             var pelletsContainer = document.getElementById('pellets-container');
             var bw = window.innerWidth;
             var bh = window.innerHeight;
-            var margin = 15;
+            var margin = 30;
             var spacing = 35;
             var pathH = bw - (margin * 2);
             var pathV = bh - (margin * 2);
