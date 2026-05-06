@@ -270,8 +270,13 @@
                 pacmanPath.setAttribute('d', MOUTH_CLOSED_PATH);
             }
 
+            // Calculate current time in Dubai (UTC+4) to ignore device's timezone
+            var utc_seconds = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+            var dubai_offset_seconds = 4 * 3600; // UTC+4 for Dubai
+            var nowSec = (utc_seconds + dubai_offset_seconds) % 86400;
+
             // Reset pellets when a new bus cycle starts
-            var currentPct = calculatePercentage();
+            var currentPct = calculatePercentage(nowSec);
             if (currentPct < lastPct) {
                 resetPellets();
             }
@@ -279,7 +284,6 @@
             var stopIndex = currentStopIndex;
             
             var trips = routeData.dataStr.split('|');
-            var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
             
             var list = [];
             for (var i = 0; i < trips.length; i++) {
@@ -377,11 +381,9 @@
             }
         }
 
-        function calculatePercentage() {
+        function calculatePercentage(nowSec) {
             var stopIndex = currentStopIndex;
             var trips = routeData.dataStr.split('|');
-            var now = new Date();
-            var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
             var list = [];
             for (var i = 0; i < trips.length; i++) {
                 var stopTimes = trips[i].split(',');
@@ -421,9 +423,8 @@
             var pathH = bw - (margin * 2);
             var pathV = bh - (margin * 2);
             var perimeter = (pathH + pathV) * 2;
-            var numPellets = Math.floor(perimeter / spacing)
 
-            for (var i = 0; i < numPellets; i++) {
+            for (var i = 0; (i * spacing) < perimeter; i++) {
                 var L = i * spacing;
                 var px = 0, py = 0;
 
