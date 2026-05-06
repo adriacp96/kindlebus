@@ -1,1 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus-Man</title>
+    <style>
+        /* High contrast, Kindle friendly styles */
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #ffffff;
+            color: #000000;
+            margin: 0;
+            padding: 30px;
+            overflow: hidden;
+        }
+        .content-wrapper {
+            max-width: 450px;
+            margin: 0 auto;
+        }
+        .route-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .toggle-btn {
+            flex: 1;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 15px 10px;
+            background-color: #fff;
+            color: #0000AA;
+            border: 3px solid #0000AA;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .toggle-btn.active {
+            background-color: #0000AA;
+            color: #fff;
+        }
+        .countdown-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .countdown-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+            color: #0000AA;
+            margin-bottom: 5px;
+        }
+        .countdown-time {
+            font-size: 72px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+        .countdown-time small {
+            font-size: 40px;
+            font-weight: 800;
+            position: relative;
+            top: -8px;
+        }
+        .schedule-list {
+            list-style: none;
+            margin: 0;
+        }
+        .schedule-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 10px;
+            border-bottom: 2px solid #ccc;
+            color: #666;
+        }
+        .schedule-item:last-child {
+            border-bottom: none;
+        }
+        .time {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .status {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+        .schedule-item.future {
+            color: #000;
+            border-bottom: 2px solid #000;
+        }
+        .schedule-item.next {
+            background-color: #000;
+            color: #fff;
+            border-radius: 6px;
+            border: none;
+            padding: 20px 10px;
+            margin: 5px 0;
+        }
+        .schedule-item.next .time {
+            font-size: 32px;
+        }
+        .schedule-item.next .status {
+            font-size: 16px;
+        }
+        .screen-border {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        #pacman-container {
+            transition: transform 1s linear;
+            visibility: hidden;
+        }
+        #pacman {
+            fill: #FFFF00; /* Pac-Man Yellow */
+            stroke: #000;
+            stroke-width: 2;
+        }
+        .pellet {
+            fill: #0000AA;
+        }
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 25px;
+            gap: 15px;
+        }
+        .toggle-label {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0000AA;
+        }
+        .pacman-toggle {
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .pacman-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+        .pacman-toggle-track {
+            position: relative;
+            width: 74px;
+            height: 34px;
+            background-color: #000;
+            border: 3px solid #0000AA;
+            border-radius: 17px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+        }
+        .pellet-sm, .pellet-lg {
+            background-color: #FFFF00;
+            border-radius: 50%;
+        }
+        .pellet-sm {
+            width: 6px;
+            height: 6px;
+        }
+        .pellet-lg {
+            width: 12px;
+            height: 12px;
+        }
+        .pacman-knob {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 20px;
+            height: 20px;
+            transition: transform 0.4s;
+        }
+        .pacman-knob svg {
+            width: 100%;
+            height: 100%;
+            fill: #FFFF00;
+            stroke: #000;
+            stroke-width: 2;
+            transition: transform 0.4s;
+        }
+        input:checked + .pacman-toggle-track .pacman-knob {
+            transform: translateX(26px);
+        }
+        input:checked + .pacman-toggle-track .pacman-knob svg {
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+<body>
+    <svg class="screen-border" id="borderSvg">
+        <g id="pellets-container"></g>
+        <g id="pacman-container">
+            <!-- Pac-Man facing right by default. Will be rotated. -->
+            <path id="pacman" d="M 0,0 L -12,-7 A 12 12 0 1 1 -12,7 Z" />
+        </g>
+    </svg>
 
+    <div class="content-wrapper">
+        <div class="route-selector">
+            <button id="btnSarab4" class="toggle-btn" onclick="setStop(6)">SARAB 4</button>
+            <button id="btnHQ" class="toggle-btn" onclick="setStop(0)">HQ</button>
+        </div>
+
+        <div class="countdown-container">
+            <div class="countdown-title">Next Bus In</div>
+            <div class="countdown-time" id="countdownTime">-- MIN</div>
+        </div>
+
+        <ul class="schedule-list" id="scheduleList">
+            <!-- Populated by JavaScript -->
+        </ul>
+
+        <div class="toggle-wrapper">
+            <span class="toggle-label">Animation</span>
+            <label class="pacman-toggle" for="animation-toggle">
+                <input type="checkbox" id="animation-toggle" checked>
+                <div class="pacman-toggle-track">
+                    <div class="pellet-sm"></div>
+                    <div class="pellet-lg"></div>
+                    <div class="pacman-knob">
+                        <svg viewBox="-12 -12 24 24">
+                            <!-- This Pac-Man faces right -->
+                            <path d="M 0,0 L 12,-7 A 12 12 0 1 1 12,7 Z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <script>
+        // Using basic ES5 for maximum compatibility on Kindle's Experimental Browser
+        var pellets = [];
+        var lastPct = 0;
+        var isAnimationEnabled = true;
+        var routeData = {
+            name: "Route 5",
+            stops: ['HQ (Dep)', 'Sarab 1', 'Safa Twr', 'Sarab 5', 'Sarab 3', 'Sarab 2', 'Sarab 4', 'HQ (Arr)'],
+            dataStr: "00:05,00:30,00:31,00:32,00:33,00:34,00:35,01:15|00:20,00:45,00:46,00:47,00:48,00:49,00:50,01:28|00:40,01:05,01:06,01:07,01:08,01:09,01:10,01:48|01:00,01:25,01:26,01:27,01:28,01:29,01:30,02:08|01:20,01:45,01:46,01:47,01:48,01:49,01:50,02:28|01:40,02:05,02:06,02:07,02:08,02:09,02:10,02:48|02:00,02:25,02:26,02:27,02:28,02:29,02:30,03:08|02:20,02:45,02:46,02:47,02:48,02:49,02:50,03:28|02:40,03:05,03:06,03:07,03:08,03:09,03:10,03:48|03:05,03:30,03:31,03:32,03:33,03:34,03:35,04:13|03:30,03:55,03:56,03:57,03:58,03:59,04:00,04:38|03:55,04:20,04:21,04:22,04:23,04:24,04:25,05:03|04:15,04:40,04:41,04:42,04:43,04:44,04:45,05:23|04:35,05:00,05:01,05:02,05:03,05:04,05:05,05:43|04:55,05:20,05:21,05:22,05:23,05:24,05:25,06:03|05:15,05:40,05:41,05:42,05:43,05:44,05:45,06:23|05:35,06:00,06:01,06:02,06:03,06:04,06:05,06:45|05:55,06:20,06:21,06:22,06:23,06:24,06:25,07:05|06:15,06:40,06:41,06:42,06:43,06:44,06:45,07:25|06:35,07:00,07:01,07:02,07:03,07:04,07:05,07:45|06:55,07:20,07:21,07:22,07:23,07:24,07:25,08:05|07:15,07:43,07:44,07:45,07:46,07:47,07:48,08:28|07:35,08:03,08:04,08:05,08:06,08:07,08:08,08:48|07:55,08:23,08:24,08:25,08:26,08:27,08:28,09:08|08:15,08:43,08:44,08:45,08:46,08:47,08:48,09:28|08:35,09:03,09:04,09:05,09:06,09:07,09:08,09:48|08:55,09:23,09:24,09:25,09:26,09:27,09:28,10:08|09:20,09:48,09:49,09:50,09:51,09:52,09:53,10:33|09:45,10:13,10:14,10:15,10:16,10:17,10:18,10:58|10:10,10:38,10:39,10:40,10:41,10:42,10:43,11:23|10:35,11:03,11:04,11:05,11:06,11:07,11:08,11:48|11:00,11:28,11:29,11:30,11:31,11:32,11:33,12:13|11:25,11:53,11:54,11:55,11:56,11:57,11:58,12:38|11:50,12:18,12:19,12:20,12:21,12:22,12:23,13:03|12:15,12:43,12:44,12:45,12:46,12:47,12:48,13:28|12:40,13:08,13:09,13:10,13:11,13:12,13:13,13:53|13:05,13:33,13:34,13:35,13:36,13:37,13:38,14:18|13:30,13:58,13:59,14:00,14:01,14:02,14:03,14:43|13:55,14:23,14:24,14:25,14:26,14:27,14:28,15:08|14:20,14:48,14:49,14:50,14:51,14:52,14:53,15:33|14:45,15:13,15:14,15:15,15:16,15:17,15:18,15:58|15:10,15:38,15:39,15:40,15:41,15:42,15:43,16:23|15:35,16:03,16:04,16:05,16:06,16:07,16:08,16:48|15:55,16:23,16:24,16:25,16:26,16:27,16:28,17:08|16:15,16:43,16:44,16:45,16:46,16:47,16:48,17:28|16:35,17:03,17:04,17:05,17:06,17:07,17:08,17:48|16:55,17:23,17:24,17:25,17:26,17:27,17:28,18:08|17:15,17:43,17:44,17:45,17:46,17:47,17:48,18:28|17:35,18:03,18:04,18:05,18:06,18:07,18:08,18:48|18:00,18:28,18:29,18:30,18:31,18:32,18:33,19:18|18:25,18:53,18:54,18:55,18:56,18:57,18:58,19:43|18:50,19:18,19:19,19:20,19:21,19:22,19:23,20:08|19:15,19:43,19:44,19:45,19:46,19:47,19:48,20:33|19:40,20:08,20:09,20:10,20:11,20:12,20:13,20:58|20:05,20:33,20:34,20:35,20:36,20:37,20:38,21:23|20:30,20:58,20:59,21:00,21:01,21:02,21:03,21:48|20:55,21:23,21:24,21:25,21:26,21:27,21:28,22:13|21:20,21:48,21:49,21:50,21:51,21:52,21:53,22:33|21:45,22:13,22:14,22:15,22:16,22:17,22:18,22:58|22:10,22:38,22:39,22:40,22:41,22:42,22:43,23:23|22:30,22:58,22:59,23:00,23:01,23:02,23:03,23:43|22:50,23:18,23:19,23:20,23:21,23:22,23:23,00:03|23:10,23:38,23:39,23:40,23:41,23:42,23:43,00:23|23:30,23:58,23:59,00:00,00:01,00:02,00:03,00:43|23:50,00:15,00:16,00:17,00:18,00:19,00:20,01:00"
+        };
+
+        var listElements = [];
+        var currentStopIndex = 6; // Default to Sarab 4 (index 6)
+
+        function parseTime(tStr) {
+            var parts = tStr.split(':');
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
+
+        function setStop(index) {
+            currentStopIndex = index;
+            document.getElementById('btnSarab4').className = (index === 6) ? 'toggle-btn active' : 'toggle-btn';
+            document.getElementById('btnHQ').className = (index === 0) ? 'toggle-btn active' : 'toggle-btn';
+            updateUI();
+        }
+
+        function updateUI() {
+            // Reset pellets when a new bus cycle starts
+            var currentPct = calculatePercentage();
+            if (currentPct < lastPct) {
+                resetPellets();
+            }
+            lastPct = currentPct;
+            var stopIndex = currentStopIndex;
+            
+            var trips = routeData.dataStr.split('|');
+            var now = new Date();
+            var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            
+            var list = [];
+            for (var i = 0; i < trips.length; i++) {
+                var stopTimes = trips[i].split(',');
+                var tStr = stopTimes[stopIndex];
+                var targetMin = parseTime(tStr);
+                var targetSec = targetMin * 60;
+                var diff = targetSec - nowSec;
+                
+                // Normalize to [-43200, 43199] seconds to handle midnight wrap-around cleanly
+                while (diff < -43200) diff += 86400;
+                while (diff >= 43200) diff -= 86400;
+                
+                list.push({ time: tStr, diff: diff });
+            }
+            
+            list.sort(function(a, b) { return a.diff - b.diff; });
+            
+            var nextIdx = 0;
+            for (var j = 0; j < list.length; j++) {
+                if (list[j].diff >= 0) {
+                    nextIdx = j;
+                    break;
+                }
+            }
+            
+            var nextBus = list[nextIdx];
+            var cdText = document.getElementById('countdownTime');
+            if (nextBus.diff <= 0) {
+                cdText.innerText = "DUE NOW";
+            } else {
+                var m = Math.floor(nextBus.diff / 60);
+                var s = nextBus.diff % 60;
+                cdText.innerHTML = m + '<small>:</small>' + (s < 10 ? "0" + s : s);
+            }
+            
+            if (isAnimationEnabled) {
+                // Pac-Man Animation Logic
+                var margin = 15;
+                var bw = window.innerWidth;
+                var bh = window.innerHeight;
+                var pathH = bw - (margin * 2);
+                var pathV = bh - (margin * 2);
+                var perimeter = (pathH + pathV) * 2;
+                var L = perimeter * currentPct;
+                var px = 0, py = 0, rot = 0; // Position and Rotation
+
+                // Calculate Pac-Man's position and rotation
+                if (L <= pathH) { // Top edge
+                    px = margin + L;
+                    py = margin;
+                    rot = 180;
+                } else if (L <= pathH + pathV) { // Right edge
+                    px = bw - margin;
+                    py = margin + (L - pathH);
+                    rot = 270;
+                } else if (L <= pathH * 2 + pathV) { // Bottom edge
+                    px = (bw - margin) - (L - (pathH + pathV));
+                    py = bh - margin;
+                    rot = 0;
+                } else { // Left edge
+                    px = margin;
+                    py = (bh - margin) - (L - (pathH * 2 + pathV));
+                    rot = 90;
+                }
+
+                var pacmanContainer = document.getElementById('pacman-container');
+                pacmanContainer.style.transform = 'translate(' + px + 'px, ' + py + 'px) rotate(' + rot + 'deg)';
+
+                // Eat pellets
+                for (var p = 0; p < pellets.length; p++) {
+                    if (pellets[p].pos < L) {
+                        pellets[p].el.style.visibility = 'hidden';
+                    }
+                }
+            }
+
+            for (var k = -2; k <= 2; k++) {
+                var idx = (nextIdx + k + list.length) % list.length;
+                var item = list[idx];
+                var el = listElements[k + 2];
+                
+                el.time.innerText = item.time;
+
+                if (k < 0) {
+                    el.li.className = 'schedule-item';
+                    el.status.innerText = 'Departed';
+                } else if (k === 0) {
+                    el.li.className = 'schedule-item next';
+                    el.status.innerText = 'Next Bus';
+                } else {
+                    el.li.className = 'schedule-item future';
+                    el.status.innerText = 'Scheduled';
+                }
+            }
+        }
+
+        function calculatePercentage() {
+            var stopIndex = currentStopIndex;
+            var trips = routeData.dataStr.split('|');
+            var now = new Date();
+            var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            var list = [];
+            for (var i = 0; i < trips.length; i++) {
+                var stopTimes = trips[i].split(',');
+                var tStr = stopTimes[stopIndex];
+                var targetSec = parseTime(tStr) * 60;
+                var diff = targetSec - nowSec;
+                while (diff < -43200) diff += 86400;
+                while (diff >= 43200) diff -= 86400;
+                list.push({ diff: diff });
+            }
+            list.sort(function(a, b) { return a.diff - b.diff; });
+            var nextIdx = 0;
+            for (var j = 0; j < list.length; j++) {
+                if (list[j].diff >= 0) { nextIdx = j; break; }
+            }
+            var nextBus = list[nextIdx];
+            var prevBus = list[(nextIdx - 1 + list.length) % list.length];
+            var totalGap = nextBus.diff - prevBus.diff;
+            if (totalGap <= 0) totalGap = 1;
+            var pct = 1 - (nextBus.diff / totalGap);
+            return (pct < 0) ? 0 : (pct > 1) ? 1 : pct;
+        }
+
+        function resetPellets() {
+            for (var i = 0; i < pellets.length; i++) {
+                pellets[i].el.style.visibility = 'visible';
+            }
+        }
+
+        function init() {
+            // Create pellets
+            var pelletsContainer = document.getElementById('pellets-container');
+            var bw = window.innerWidth;
+            var bh = window.innerHeight;
+            var margin = 15;
+            var spacing = 35;
+            var pathH = bw - (margin * 2);
+            var pathV = bh - (margin * 2);
+            var perimeter = (pathH + pathV) * 2;
+            var numPellets = Math.floor(perimeter / spacing)
+
+            for (var i = 0; i < numPellets; i++) {
+                var L = i * spacing;
+                var px = 0, py = 0;
+
+                if (L <= pathH) { // Top edge
+                    px = margin + L;
+                    py = margin;
+                } else if (L <= pathH + pathV) { // Right edge
+                    px = bw - margin;
+                    py = margin + (L - pathH);
+                } else if (L <= pathH * 2 + pathV) { // Bottom edge
+                    px = (bw - margin) - (L - (pathH + pathV));
+                    py = bh - margin;
+                } else if (L < perimeter) { // Left edge
+                    px = margin;
+                    py = (bh - margin) - (L - (pathH * 2 + pathV));
+                }
+
+                var pellet = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                pellet.setAttribute('class', 'pellet');
+                pellet.setAttribute('cx', px);
+                pellet.setAttribute('cy', py);
+                pellet.setAttribute('r', 4);
+                pelletsContainer.appendChild(pellet);
+                pellets.push({ el: pellet, pos: L });
+            }
+
+            // Pac-Man mouth animation
+            var pacmanPath = document.getElementById('pacman');
+            var mouthOpen = 'M 0,0 L -12,-7 A 12 12 0 1 1 -12,7 Z';
+            var mouthClosed = 'M 0,0 L -12,-1 A 12 12 0 1 1 -12,1 Z';
+            var isOpen = true;
+            setInterval(function() {
+                pacmanPath.setAttribute('d', isOpen ? mouthClosed : mouthOpen);
+                isOpen = !isOpen;
+            }, 250);
+
+            var ul = document.getElementById('scheduleList');
+            ul.innerHTML = ''; 
+            for (var j = 0; j < 5; j++) {
+                var li = document.createElement('li');
+                var spanTime = document.createElement('span');
+                var spanStatus = document.createElement('span');
+                spanStatus.className = 'status';
+                spanTime.className = 'time';
+                li.appendChild(spanTime);
+                li.appendChild(spanStatus);
+                ul.appendChild(li);
+                listElements.push({ li: li, time: spanTime, status: spanStatus });
+            }
+
+            setStop(6); // Set default stop and run first UI update
+
+            var pacmanContainer = document.getElementById('pacman-container');
+            pacmanContainer.style.visibility = 'visible';
+            // Add transition after the first placement to avoid initial animation from corner
+            setTimeout(function() {
+                pacmanContainer.style.transition = 'transform 1s linear';
+            }, 100);
+
+            var animationToggle = document.getElementById('animation-toggle');
+            var borderSvg = document.getElementById('borderSvg');
+            
+            // Set initial state from checkbox
+            isAnimationEnabled = animationToggle.checked;
+            borderSvg.style.display = isAnimationEnabled ? 'block' : 'none';
+
+            animationToggle.onchange = function() {
+                isAnimationEnabled = this.checked;
+                borderSvg.style.display = isAnimationEnabled ? 'block' : 'none';
+            };
+
+            setInterval(updateUI, 1000);
+        }
+
+        // Initialize the view on load
+        window.onload = init;
+    </script>
+</body>
+</html>
